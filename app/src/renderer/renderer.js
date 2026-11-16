@@ -57,6 +57,13 @@ export class Renderer {
     // GLSL utils (will be injected)
     this.glslUtils = '';
     
+    // Pending shader rebuild state. setShader()/setUniforms() only mutate these
+    // caches; the material is updated atomically on the next render() call.
+    this.needsRebuild = false;
+    this.cachedVertexShader = '';
+    this.cachedFragmentShader = '';
+    this.cachedMaterialUniforms = {};
+    
     // Initialize internal uniforms
     this.initInternalUniforms();
     
@@ -83,7 +90,6 @@ export class Renderer {
     this.uniforms.iTreble = { value: 0 };
     this.uniforms.iBpm = { value: 0 };
     this.uniforms.iBeat = { value: 0 };
-    this.uniforms.iSpeed = { value: 0 };
     this.uniforms.iSpeed = { value: 0 };
   }
   
@@ -132,8 +138,14 @@ export class Renderer {
       this.dpr = dpr;
       this.aspectRatio = width / height;
       
+      // NOTE: setPixelRatio() internally calls setSize() using the stored
+      // _width/_height, which are already in CSS pixels and get multiplied by
+      // _pixelRatio inside setSize(). Passing width*dpr here would double-apply
+      // the DPR and blow up the drawing buffer (dpr^2), which is exactly the
+      // kind of stale/backbuffer mismatch that corrupts output after rapid
+      // sketch switches. Pass the raw CSS-pixel size.
       this.renderer.setPixelRatio(dpr);
-      this.renderer.setSize(width * dpr, height * dpr, false);
+      this.renderer.setSize(width, height, false);
       
       // Update resolution-dependent uniforms
       this.updateResolutionUniforms();
@@ -162,12 +174,21 @@ export class Renderer {
   
   setShader(shaderCode) {
     this.fragmentShader = shaderCode;
-    this.rebuildShaders();
+    this.requestRebuild();
   }
   
   setUniforms(uniforms) {
     this.uniforms = { ...this.uniforms, ...uniforms };
-    this.rebuildShaders();
+    this.requestRebuild();
+  }
+
+  // Schedule a shader/material rebuild. All mutation of this.material is
+  // deferred to render() so that rapid back-to-back calls (e.g. applyCurrentSketch
+  // calling setShader then setUniforms, or fast Prev/Next sketch switching) cannot
+  // race a Three.js ShaderMaterial recompilation that runs asynchronously on the
+  // GL thread. Only the latest pending state is ever applied.
+  requestRebuild() {
+    this.needsRebuild = true;
   }
   
   rebuildShaders() {
@@ -180,14 +201,9 @@ export class Renderer {
         materialUniforms[key] = uniform;
       }
     }
-    this.material.uniforms = materialUniforms;
     
     // Vertex shader
     const newVertexShader = this.vertexDefs + declarations + DEFAULT_VERTEX_SHADER;
-    if (newVertexShader !== this.vertexShader) {
-      this.vertexShader = newVertexShader;
-      this.material.vertexShader = this.vertexShader;
-    }
     
     // Fragment shader
     let shaderCode = this.fragmentShader || DEFAULT_FRAGMENT_SHADER;
@@ -204,11 +220,45 @@ export class Renderer {
     
     const fullShader = this.fragmentDefs + declarations + this.glslUtils + shaderCode;
     
-    if (fullShader !== this.material.fragmentShader) {
-      this.material.fragmentShader = fullShader;
+    // Cache the result; the material is updated atomically in render().
+    this.cachedVertexShader = newVertexShader;
+    this.cachedFragmentShader = fullShader;
+    this.cachedMaterialUniforms = materialUniforms;
+    this.cachedDeclarations = declarations;
+  }
+  
+  applyCachedShader() {
+    if (!this.needsRebuild) return;
+    
+    this.rebuildShaders();
+    
+    // Apply atomically to the material on the main thread, during the render
+    // call, so Three.js never sees a half-written shader while a previous
+    // compile is in flight on the GL thread. Mutate the existing material
+    // uniforms object in place rather than replacing it, so uniform values
+    // pushed by updateUniforms() (audio, time, tween) on the previous frame
+    // survive the rebuild instead of being dropped.
+    const materialUniforms = this.material.uniforms;
+    for (const key of Object.keys(this.cachedMaterialUniforms)) {
+      const incoming = this.cachedMaterialUniforms[key];
+      if (materialUniforms[key] && materialUniforms[key].value !== undefined) {
+        materialUniforms[key].value = incoming.value;
+      } else {
+        materialUniforms[key] = incoming;
+      }
+    }
+    
+    if (this.cachedVertexShader !== this.vertexShader) {
+      this.vertexShader = this.cachedVertexShader;
+      this.material.vertexShader = this.cachedVertexShader;
+    }
+    
+    if (this.cachedFragmentShader !== this.material.fragmentShader) {
+      this.material.fragmentShader = this.cachedFragmentShader;
     }
     
     this.material.needsUpdate = true;
+    this.needsRebuild = false;
     this.initialized = true;
   }
   
@@ -241,34 +291,85 @@ export class Renderer {
     // Robust mainImage detection - check for the exact signature
     const hasMainImage = /void\s+mainImage\s*\(\s*out\s+vec4\s+\w+\s*,\s*in\s+vec2\s+\w+\s*\)/.test(shaderCode);
     if (!hasMainImage) return shaderCode;
-    
-    // Find the mainImage function and extract everything
+
+    // Find the mainImage function and extract everything.
+    // Brace counting is done on a comment/string/preprocessor-stripped view of
+    // each line so that braces inside // comments, /* */ blocks, string
+    // literals or #define macros do not throw off the depth.
     const lines = shaderCode.split('\n');
     const globalLines = [];
     const functionLines = [];
     let inFunction = false;
     let braceCount = 0;
     let mainImageFound = false;
-    
+    let inBlockComment = false;
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmed = line.trim();
-      
-      // Detect mainImage function start
+
+      // Track block-comment state across lines using the raw line.
+      let blockState = inBlockComment;
+      let stripped = '';
+      let j = 0;
+      while (j < line.length) {
+        const two = line.slice(j, j + 2);
+        if (blockState) {
+          if (two === '*/') { blockState = false; j += 2; continue; }
+          stripped += ' ';
+          j += 1;
+          continue;
+        }
+        if (two === '//') { stripped += '  '; j += 2; break; } // rest of line is comment
+        if (two === '/*') { blockState = true; stripped += '  '; j += 2; continue; }
+        const ch = line[j];
+        if (ch === '"') {
+          stripped += '"';
+          j += 1;
+          while (j < line.length && line[j] !== '"') {
+            if (line[j] === '\\') { stripped += '  '; j += 2; continue; }
+            stripped += '"';
+            j += 1;
+          }
+          if (j < line.length) { stripped += '"'; j += 1; }
+          continue;
+        }
+        if (ch === "'") {
+          stripped += "'";
+          j += 1;
+          while (j < line.length && line[j] !== "'") {
+            if (line[j] === '\\') { stripped += '  '; j += 2; continue; }
+            stripped += "'";
+            j += 1;
+          }
+          if (j < line.length) { stripped += "'"; j += 1; }
+          continue;
+        }
+        stripped += ch;
+        j += 1;
+      }
+      inBlockComment = blockState;
+
+      // Preprocessor lines (#define, #ifdef, ...) are not real scope braces.
+      const isPreprocessor = /^\s*#/.test(line);
+      const codeForBraces = isPreprocessor ? '' : stripped;
+
+      // Detect mainImage function start on the raw trimmed line (signature is
+      // never inside a comment/string in practice).
       if (!inFunction && /void\s+mainImage\s*\(\s*out\s+vec4\s+\w+\s*,\s*in\s+vec2\s+\w+\s*\)/.test(trimmed)) {
         inFunction = true;
         mainImageFound = true;
         functionLines.push(line);
-        braceCount += (line.match(/\{/g) || []).length;
-        braceCount -= (line.match(/\}/g) || []).length;
+        braceCount += (codeForBraces.match(/\{/g) || []).length;
+        braceCount -= (codeForBraces.match(/\}/g) || []).length;
         continue;
       }
-      
+
       if (inFunction) {
         functionLines.push(line);
-        braceCount += (line.match(/\{/g) || []).length;
-        braceCount -= (line.match(/\}/g) || []).length;
-        
+        braceCount += (codeForBraces.match(/\{/g) || []).length;
+        braceCount -= (codeForBraces.match(/\}/g) || []).length;
+
         if (braceCount <= 0) {
           inFunction = false;
           braceCount = 0;
@@ -277,18 +378,28 @@ export class Renderer {
         globalLines.push(line);
       }
     }
-    
+
     if (!mainImageFound) return shaderCode;
-    
+
     const globalSection = globalLines.join('\n');
     const functionSection = functionLines.join('\n');
-    
-    // Add fallback mainImage if not found in functions
-    return `${globalSection}\n\n${functionSection}\n\nvoid main() {\n  mainImage(gl_FragColor, gl_FragCoord.xy);\n}`;
+
+    // Add fallback main() if not already present in the shader.
+    if (!/void\s+main\s*\(\s*\)\s*\{/.test(functionSection) && !/void\s+main\s*\(\s*\)\s*\{/.test(globalSection)) {
+      return `${globalSection}\n\n${functionSection}\n\nvoid main() {\n  mainImage(gl_FragColor, gl_FragCoord.xy);\n}`;
+    }
+    return `${globalSection}\n\n${functionSection}`;
   }
   
   updateUniforms(now) {
     if (!this.initialized) return;
+    
+    // Push any interpolated tween uniforms to the material WITHOUT rebuilding
+    // shaders. This lets the SketchEngine tween (bool tween uniforms) drive
+    // visuals on every frame without racing a Three.js shader recompilation.
+    if (this.onTweenUniforms) {
+      this.applyUniformValues(this.onTweenUniforms());
+    }
     
     const time = now / 1000;
     this.time = time;
@@ -326,15 +437,37 @@ export class Renderer {
     }
   }
   
+  // Merge uniform VALUES (in {key: {value}} form) into the renderer's uniform
+  // state WITHOUT triggering a shader rebuild. Used to push interpolated
+  // tween values to the material every frame. New keys are registered so the
+  // per-frame updateUniforms() sync in render() can copy them to the material.
+  applyUniformValues(uniforms) {
+    for (const [key, wrapper] of Object.entries(uniforms)) {
+      if (!wrapper || wrapper.value === undefined) continue;
+      if (this.uniforms[key] === undefined) {
+        this.uniforms[key] = { value: wrapper.value };
+      } else {
+        this.uniforms[key].value = wrapper.value;
+      }
+    }
+  }
+  
   render(now = performance.now()) {
+    // Apply any pending shader/uniform rebuild atomically, inside the render
+    // call, so Three.js never compiles a shader while a previous compile is
+    // still in flight on the GL thread. This gates rapid sketch/variant
+    // switches behind material.needsUpdate clearing.
+    this.applyCachedShader();
+    
     // Force resize if dimensions are 0 (first frame)
     if (this.width === 0 || this.height === 0) {
       this.handleResize(true);
     }
-    // Only handle resize if it's been more than 100ms since last resize
-    if (now - this.lastResizeTime > 100) {
-      this.handleResize();
-    }
+    // Resize is driven by the window 'resize' event listener in the renderer
+    // process (renderer.js) plus the explicit handleResize(true) call on sketch
+    // switch; polling every frame here caused the drawing buffer to be
+    // invalidated mid-transition and produced the garbled/blank output seen
+    // during rapid Prev/Next/variant switching.
     this.updateUniforms(now);
     this.renderer.render(this.scene, this.camera);
   }

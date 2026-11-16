@@ -97,6 +97,15 @@ ipcMain.handle('audio:enumerate-devices', async () => {
   return audioCapture.enumerateDevices();
 });
 
+// Re-run enumeration. Used by the renderer when the auto-detect on launch
+// found nothing (e.g. Spotify's PipeWire node hadn't registered yet because
+// Spotify was opened after Kaleidosync started). Retries up to `retries` times
+// with a backoff so an app opened last still surfaces.
+ipcMain.handle('audio:refresh-devices', async (event, retries, intervalMs) => {
+  await initializeAudioCapture();
+  return audioCapture.refreshSources(retries, intervalMs);
+});
+
 ipcMain.handle('audio:start-capture', async (event, deviceId) => {
   await initializeAudioCapture();
   return audioCapture.startCapture(deviceId);
@@ -127,7 +136,7 @@ ipcMain.handle('audio:get-metadata', async () => {
   const mprisId = audioCapture.mprisIdentityFor(source);
   const playing = audioCapture.playing;
   if (!mprisId) {
-    return { status: 'playing', metadata: null, playing };
+    return { status: playing ? 'playing' : 'paused', metadata: null, playing, mprisId: null };
   }
   const metadata = await audioCapture.queryMprisMetadata(mprisId);
   return { status: playing ? 'playing' : 'paused', metadata, playing, mprisId };

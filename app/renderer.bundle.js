@@ -18909,6 +18909,10 @@ void main() {
       this.startTime = performance.now();
       this.lastResizeTime = 0;
       this.glslUtils = "";
+      this.needsRebuild = false;
+      this.cachedVertexShader = "";
+      this.cachedFragmentShader = "";
+      this.cachedMaterialUniforms = {};
       this.initInternalUniforms();
       this.initThree();
     }
@@ -18929,7 +18933,6 @@ void main() {
       this.uniforms.iTreble = { value: 0 };
       this.uniforms.iBpm = { value: 0 };
       this.uniforms.iBeat = { value: 0 };
-      this.uniforms.iSpeed = { value: 0 };
       this.uniforms.iSpeed = { value: 0 };
     }
     initThree() {
@@ -18968,7 +18971,7 @@ void main() {
         this.dpr = dpr;
         this.aspectRatio = width / height;
         this.renderer.setPixelRatio(dpr);
-        this.renderer.setSize(width * dpr, height * dpr, false);
+        this.renderer.setSize(width, height, false);
         this.updateResolutionUniforms();
         this.material.needsUpdate = true;
         this.lastResizeTime = performance.now();
@@ -18987,11 +18990,19 @@ void main() {
     }
     setShader(shaderCode) {
       this.fragmentShader = shaderCode;
-      this.rebuildShaders();
+      this.requestRebuild();
     }
     setUniforms(uniforms) {
       this.uniforms = { ...this.uniforms, ...uniforms };
-      this.rebuildShaders();
+      this.requestRebuild();
+    }
+    // Schedule a shader/material rebuild. All mutation of this.material is
+    // deferred to render() so that rapid back-to-back calls (e.g. applyCurrentSketch
+    // calling setShader then setUniforms, or fast Prev/Next sketch switching) cannot
+    // race a Three.js ShaderMaterial recompilation that runs asynchronously on the
+    // GL thread. Only the latest pending state is ever applied.
+    requestRebuild() {
+      this.needsRebuild = true;
     }
     rebuildShaders() {
       const declarations = this.buildUniformDeclarations();
@@ -19001,12 +19012,7 @@ void main() {
           materialUniforms[key] = uniform;
         }
       }
-      this.material.uniforms = materialUniforms;
       const newVertexShader = this.vertexDefs + declarations + DEFAULT_VERTEX_SHADER;
-      if (newVertexShader !== this.vertexShader) {
-        this.vertexShader = newVertexShader;
-        this.material.vertexShader = this.vertexShader;
-      }
       let shaderCode = this.fragmentShader || DEFAULT_FRAGMENT_SHADER;
       const isMainImageShader = /void\s+mainImage\s*\(\s*out\s+vec4\s+\w+\s*,\s*in\s+vec2\s+\w+\s*\)/.test(shaderCode);
       if (isMainImageShader) {
@@ -19015,10 +19021,32 @@ void main() {
         shaderCode = shaderCode.replace(/void\s+main\s*\(\s*\)\s*\{/, "void main() {\n  gl_FragColor = vec4(0.0);");
       }
       const fullShader = this.fragmentDefs + declarations + this.glslUtils + shaderCode;
-      if (fullShader !== this.material.fragmentShader) {
-        this.material.fragmentShader = fullShader;
+      this.cachedVertexShader = newVertexShader;
+      this.cachedFragmentShader = fullShader;
+      this.cachedMaterialUniforms = materialUniforms;
+      this.cachedDeclarations = declarations;
+    }
+    applyCachedShader() {
+      if (!this.needsRebuild) return;
+      this.rebuildShaders();
+      const materialUniforms = this.material.uniforms;
+      for (const key of Object.keys(this.cachedMaterialUniforms)) {
+        const incoming = this.cachedMaterialUniforms[key];
+        if (materialUniforms[key] && materialUniforms[key].value !== void 0) {
+          materialUniforms[key].value = incoming.value;
+        } else {
+          materialUniforms[key] = incoming;
+        }
+      }
+      if (this.cachedVertexShader !== this.vertexShader) {
+        this.vertexShader = this.cachedVertexShader;
+        this.material.vertexShader = this.cachedVertexShader;
+      }
+      if (this.cachedFragmentShader !== this.material.fragmentShader) {
+        this.material.fragmentShader = this.cachedFragmentShader;
       }
       this.material.needsUpdate = true;
+      this.needsRebuild = false;
       this.initialized = true;
     }
     buildUniformDeclarations() {
@@ -19053,21 +19081,91 @@ void main() {
       let inFunction = false;
       let braceCount = 0;
       let mainImageFound = false;
+      let inBlockComment = false;
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const trimmed = line.trim();
+        let blockState = inBlockComment;
+        let stripped = "";
+        let j = 0;
+        while (j < line.length) {
+          const two = line.slice(j, j + 2);
+          if (blockState) {
+            if (two === "*/") {
+              blockState = false;
+              j += 2;
+              continue;
+            }
+            stripped += " ";
+            j += 1;
+            continue;
+          }
+          if (two === "//") {
+            stripped += "  ";
+            j += 2;
+            break;
+          }
+          if (two === "/*") {
+            blockState = true;
+            stripped += "  ";
+            j += 2;
+            continue;
+          }
+          const ch = line[j];
+          if (ch === '"') {
+            stripped += '"';
+            j += 1;
+            while (j < line.length && line[j] !== '"') {
+              if (line[j] === "\\") {
+                stripped += "  ";
+                j += 2;
+                continue;
+              }
+              stripped += '"';
+              j += 1;
+            }
+            if (j < line.length) {
+              stripped += '"';
+              j += 1;
+            }
+            continue;
+          }
+          if (ch === "'") {
+            stripped += "'";
+            j += 1;
+            while (j < line.length && line[j] !== "'") {
+              if (line[j] === "\\") {
+                stripped += "  ";
+                j += 2;
+                continue;
+              }
+              stripped += "'";
+              j += 1;
+            }
+            if (j < line.length) {
+              stripped += "'";
+              j += 1;
+            }
+            continue;
+          }
+          stripped += ch;
+          j += 1;
+        }
+        inBlockComment = blockState;
+        const isPreprocessor = /^\s*#/.test(line);
+        const codeForBraces = isPreprocessor ? "" : stripped;
         if (!inFunction && /void\s+mainImage\s*\(\s*out\s+vec4\s+\w+\s*,\s*in\s+vec2\s+\w+\s*\)/.test(trimmed)) {
           inFunction = true;
           mainImageFound = true;
           functionLines.push(line);
-          braceCount += (line.match(/\{/g) || []).length;
-          braceCount -= (line.match(/\}/g) || []).length;
+          braceCount += (codeForBraces.match(/\{/g) || []).length;
+          braceCount -= (codeForBraces.match(/\}/g) || []).length;
           continue;
         }
         if (inFunction) {
           functionLines.push(line);
-          braceCount += (line.match(/\{/g) || []).length;
-          braceCount -= (line.match(/\}/g) || []).length;
+          braceCount += (codeForBraces.match(/\{/g) || []).length;
+          braceCount -= (codeForBraces.match(/\}/g) || []).length;
           if (braceCount <= 0) {
             inFunction = false;
             braceCount = 0;
@@ -19079,16 +19177,24 @@ void main() {
       if (!mainImageFound) return shaderCode;
       const globalSection = globalLines.join("\n");
       const functionSection = functionLines.join("\n");
-      return `${globalSection}
+      if (!/void\s+main\s*\(\s*\)\s*\{/.test(functionSection) && !/void\s+main\s*\(\s*\)\s*\{/.test(globalSection)) {
+        return `${globalSection}
 
 ${functionSection}
 
 void main() {
   mainImage(gl_FragColor, gl_FragCoord.xy);
 }`;
+      }
+      return `${globalSection}
+
+${functionSection}`;
     }
     updateUniforms(now) {
       if (!this.initialized) return;
+      if (this.onTweenUniforms) {
+        this.applyUniformValues(this.onTweenUniforms());
+      }
       const time = now / 1e3;
       this.time = time;
       const w = this.width * this.dpr;
@@ -19110,12 +19216,24 @@ void main() {
         }
       }
     }
+    // Merge uniform VALUES (in {key: {value}} form) into the renderer's uniform
+    // state WITHOUT triggering a shader rebuild. Used to push interpolated
+    // tween values to the material every frame. New keys are registered so the
+    // per-frame updateUniforms() sync in render() can copy them to the material.
+    applyUniformValues(uniforms) {
+      for (const [key, wrapper] of Object.entries(uniforms)) {
+        if (!wrapper || wrapper.value === void 0) continue;
+        if (this.uniforms[key] === void 0) {
+          this.uniforms[key] = { value: wrapper.value };
+        } else {
+          this.uniforms[key].value = wrapper.value;
+        }
+      }
+    }
     render(now = performance.now()) {
+      this.applyCachedShader();
       if (this.width === 0 || this.height === 0) {
         this.handleResize(true);
-      }
-      if (now - this.lastResizeTime > 100) {
-        this.handleResize();
       }
       this.updateUniforms(now);
       this.renderer.render(this.scene, this.camera);
@@ -20107,7 +20225,7 @@ void main() {
       this.tweenDuration = duration;
     }
     updateTween(now) {
-      if (!this.tweening || !this.tweenInterpolator) return false;
+      if (!this.tweening || !this.tweenInterpolator) return null;
       const elapsed = now - this.tweenStartTime;
       const progress = Math.min(1, elapsed / this.tweenDuration);
       const nextUniforms = this.tweenInterpolator(progress);
@@ -20124,7 +20242,7 @@ void main() {
         this.tweening = false;
         this.tweenInterpolator = null;
       }
-      return true;
+      return this.getCurrentUniforms();
     }
     augmentUniformsWithTweens() {
       for (const [key, value] of Object.entries(this.currentUniforms)) {
@@ -20424,18 +20542,7 @@ vec2 k_uv() {
   async function loadAudioSources() {
     try {
       const sources = await window.kaleidosync.audio.enumerateDevices();
-      audioDeviceSelect.innerHTML = '<option value="">Select audio source...</option>';
-      sources.forEach((source) => {
-        const option = document.createElement("option");
-        option.value = source.id;
-        option.textContent = source.name;
-        if (source.type === "monitor") {
-          option.textContent += " (System Monitor)";
-        } else if (source.type === "application") {
-          option.textContent += " (App)";
-        }
-        audioDeviceSelect.appendChild(option);
-      });
+      populateAudioSourceSelect(sources);
       const spotifySource = sources.find((s) => s.name.toLowerCase().includes("spotify"));
       const appSource = spotifySource || sources.find((s) => s.type === "application");
       if (appSource) {
@@ -20449,10 +20556,60 @@ vec2 k_uv() {
         if (monitorSource) {
           audioDeviceSelect.value = monitorSource.id;
         }
+        retryAudioSourceDiscovery();
       }
     } catch (err) {
       console.error("[Kaleidosync] Failed to load audio sources:", err);
     }
+  }
+  var audioSourceRetryTimer = null;
+  function retryAudioSourceDiscovery() {
+    if (audioSourceRetryTimer) return;
+    let attempt = 0;
+    const maxAttempts = 10;
+    const schedule = () => {
+      if (attempt >= maxAttempts) {
+        audioSourceRetryTimer = null;
+        return;
+      }
+      attempt++;
+      const delay = Math.min(2e3, 500 * attempt);
+      audioSourceRetryTimer = setTimeout(async () => {
+        try {
+          const sources = await window.kaleidosync.audio.refreshDevices(maxAttempts - attempt, 500);
+          const spotifySource = sources.find((s) => s.name.toLowerCase().includes("spotify"));
+          const appSource = spotifySource || sources.find((s) => s.type === "application");
+          if (appSource) {
+            audioDeviceSelect.value = appSource.id;
+            if (spotifySource) {
+              console.log("[Kaleidosync] Spotify detected on retry, auto-starting capture...");
+              setTimeout(() => startAudioCapture(), 500);
+            }
+            audioSourceRetryTimer = null;
+            return;
+          }
+          schedule();
+        } catch (err) {
+          console.warn("[Kaleidosync] Audio source retry failed:", err.message);
+          schedule();
+        }
+      }, delay);
+    };
+    schedule();
+  }
+  function populateAudioSourceSelect(sources) {
+    audioDeviceSelect.innerHTML = '<option value="">Select audio source...</option>';
+    sources.forEach((source) => {
+      const option = document.createElement("option");
+      option.value = source.id;
+      option.textContent = source.name;
+      if (source.type === "monitor") {
+        option.textContent += " (System Monitor)";
+      } else if (source.type === "application") {
+        option.textContent += " (App)";
+      }
+      audioDeviceSelect.appendChild(option);
+    });
   }
   function applyCurrentSketch() {
     if (!sketchEngine.currentSketch) return;
@@ -20507,15 +20664,23 @@ vec2 k_uv() {
     }
   }
   var mprisMetadataInterval = null;
+  var mprisMetadataRetryCount = 0;
+  var MPRIS_MAX_RETRIES = 12;
   function startMprisMetadataPolling() {
     stopMprisMetadataPolling();
+    mprisMetadataRetryCount = 0;
     mprisMetadataInterval = setInterval(() => {
       window.kaleidosync.audio.getMprisMetadata().then(({ status, metadata, playing, mprisId }) => {
         if (!audioCapturing) return;
         if (!metadata) {
-          if (status === "idle") stopMprisMetadataPolling();
+          mprisMetadataRetryCount++;
+          if (mprisMetadataRetryCount >= MPRIS_MAX_RETRIES) {
+            console.warn("[Kaleidosync] MPRIS metadata not available after retries; continuing to poll");
+            mprisMetadataRetryCount = 0;
+          }
           return;
         }
+        mprisMetadataRetryCount = 0;
         updateMprisUI(status, metadata, playing, mprisId);
       });
     }, 1e3);
@@ -20528,7 +20693,9 @@ vec2 k_uv() {
   }
   function cleanMetadataText(text) {
     if (!text) return "";
-    return text.replace(/^['"]+/, "").replace(/['"]+$/, "").trim();
+    const cleaned = text.replace(/^['"]+/, "").replace(/['"]+$/, "").trim();
+    if (!cleaned && text.trim()) return text.trim();
+    return cleaned;
   }
   function marquee(el) {
     const clone = el.cloneNode(true);
@@ -20628,7 +20795,12 @@ vec2 k_uv() {
   function animate(now = performance.now()) {
     animationId = requestAnimationFrame(animate);
     if (sketchEngine) {
-      sketchEngine.updateTween(now);
+      const tweenUniforms = sketchEngine.updateTween(now);
+      if (renderer && tweenUniforms) {
+        renderer.onTweenUniforms = () => tweenUniforms;
+      } else if (renderer) {
+        renderer.onTweenUniforms = null;
+      }
     }
     frameCount++;
     if (now - fpsUpdateTime >= 1e3) {

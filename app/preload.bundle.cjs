@@ -9,6 +9,7 @@ import_electron.contextBridge.exposeInMainWorld("kaleidosync", {
     stopCapture: () => import_electron.ipcRenderer.invoke("audio:stop-capture"),
     getAnalytics: () => import_electron.ipcRenderer.invoke("audio:get-analytics"),
     getMprisMetadata: () => import_electron.ipcRenderer.invoke("audio:get-metadata"),
+    refreshDevices: () => import_electron.ipcRenderer.invoke("audio:refresh-devices"),
     sendMprisCommand: (cmd) => import_electron.ipcRenderer.invoke("audio:mpris-command", cmd),
     onAnalyticsUpdate: (callback) => {
       const handler = (_, data) => callback(data);

@@ -138,7 +138,7 @@ export class SketchEngine {
   }
   
   updateTween(now) {
-    if (!this.tweening || !this.tweenInterpolator) return false;
+    if (!this.tweening || !this.tweenInterpolator) return null;
     
     const elapsed = now - this.tweenStartTime;
     const progress = Math.min(1, elapsed / this.tweenDuration);
@@ -161,7 +161,9 @@ export class SketchEngine {
       this.tweenInterpolator = null;
     }
     
-    return true;
+    // Return the interpolated uniform values so the renderer can push them to
+    // the material every frame without rebuilding shaders.
+    return this.getCurrentUniforms();
   }
   
   augmentUniformsWithTweens() {
