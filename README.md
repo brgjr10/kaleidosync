@@ -4,9 +4,9 @@ Standalone desktop app that renders 50 Kaleidosync visualizers synced to system 
 
 ---
 
-## Screenshots
-
 ![Live Preview](preview3.gif)
+
+## Screenshots
 
 | Main UI | Hidden Mode |
 |---------|-------------|
