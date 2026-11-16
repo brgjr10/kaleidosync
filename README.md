@@ -199,7 +199,7 @@ This appports the full visualizer set and rewrites all sync logic, GUI, and audi
 
 ## License
 
-MIT
+[MIT](LICENSE.txt)
 
 ---
 
