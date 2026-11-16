@@ -1,5 +1,5 @@
 {
-  "extractedAt": "2026-11-15T21:03:27.936Z",
+  "extractedAt": "2026-11-16T05:33:48.922Z",
   "source": "/tmp/kilo/kaleidosync-docker/node_modules/@wearesage/vue/src/stores/sketches.ts",
   "count": 50,
   "sketches": [
@@ -108,8 +108,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Orb Kaleidoscope"
+      "isPublic": true
     },
     {
       "id": "sketch_001_d73dc53f",
@@ -192,8 +191,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Kaleidoscope Balls"
+      "isPublic": true
     },
     {
       "id": "sketch_002_81fb8467",
@@ -296,8 +294,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Hue Orbit"
+      "isPublic": true
     },
     {
       "id": "sketch_003_0b9b8a99",
@@ -400,8 +397,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Orb Circle"
+      "isPublic": true
     },
     {
       "id": "sketch_004_5c661eb8",
@@ -496,8 +492,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Warp Orbs"
+      "isPublic": true
     },
     {
       "id": "sketch_005_0f3610c4",
@@ -570,8 +565,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Sine Wave Balls"
+      "isPublic": true
     },
     {
       "id": "sketch_006_7372fe0f",
@@ -674,8 +668,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Cosine Orbs"
+      "isPublic": true
     },
     {
       "id": "sketch_007_f461c2f0",
@@ -778,8 +771,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Spectrum Orbit"
+      "isPublic": true
     },
     {
       "id": "sketch_008_dad31134",
@@ -840,8 +832,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Simple Spin"
+      "isPublic": true
     },
     {
       "id": "sketch_009_dc3def90",
@@ -904,8 +895,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Shape Ripple"
+      "isPublic": true
     },
     {
       "id": "sketch_010_d93baf5b",
@@ -976,8 +966,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Warp Spin"
+      "isPublic": true
     },
     {
       "id": "sketch_011_bb79e01b",
@@ -1048,8 +1037,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Mirror Spin"
+      "isPublic": true
     },
     {
       "id": "sketch_012_7c07a0e7",
@@ -1120,8 +1108,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Minimal Orbit"
+      "isPublic": true
     },
     {
       "id": "sketch_013_bc811605",
@@ -1172,8 +1159,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Inverse Balls"
+      "isPublic": true
     },
     {
       "id": "sketch_014_2e6a5290",
@@ -1239,8 +1225,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Reciprocal Balls"
+      "isPublic": true
     },
     {
       "id": "sketch_015_9f140a9b",
@@ -1298,8 +1283,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Tangent Field"
+      "isPublic": true
     },
     {
       "id": "sketch_016_a64c9a48",
@@ -1352,8 +1336,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Distorted Kaleido"
+      "isPublic": true
     },
     {
       "id": "sketch_017_2c376b19",
@@ -1424,8 +1407,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Mirror Balls"
+      "isPublic": true
     },
     {
       "id": "sketch_018_6d7e541c",
@@ -1493,8 +1475,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Hex Kaleido"
+      "isPublic": true
     },
     {
       "id": "sketch_019_7bb09b10",
@@ -1595,8 +1576,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Invert Grid"
+      "isPublic": true
     },
     {
       "id": "sketch_020_133a068f",
@@ -1669,8 +1649,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Cosmic Trail"
+      "isPublic": true
     },
     {
       "id": "sketch_021_c31ed6b1",
@@ -1764,8 +1743,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Tri Kaleido"
+      "isPublic": true
     },
     {
       "id": "sketch_022_d015a9e6",
@@ -1880,8 +1858,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Dotted Mirror"
+      "isPublic": true
     },
     {
       "id": "sketch_023_16c17223",
@@ -1974,8 +1951,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Inverse Orbs"
+      "isPublic": true
     },
     {
       "id": "sketch_024_04519940",
@@ -2028,8 +2004,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Distance Kaleido"
+      "isPublic": true
     },
     {
       "id": "sketch_025_48fe2f92",
@@ -2087,8 +2062,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Dot Spin"
+      "isPublic": true
     },
     {
       "id": "sketch_026_8b252f24",
@@ -2174,8 +2148,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Hue Mirror Grid"
+      "isPublic": true
     },
     {
       "id": "sketch_027_4e65c7fc",
@@ -2188,7 +2161,7 @@
           "rotation": 0.012,
           "xMultiplier": 251.592,
           "yMultiplier": 1549.9,
-          "colorSpread": 1.2e-05,
+          "colorSpread": 0.000012,
           "colorMultiplier": 0.51,
           "invert": false,
           "brightness": 1.86,
@@ -2222,7 +2195,7 @@
         },
         "colorSpread": {
           "type": "float",
-          "default": 1.2e-05
+          "default": 0.000012
         },
         "colorMultiplier": {
           "type": "float",
@@ -2266,8 +2239,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Log Spiral"
+      "isPublic": true
     },
     {
       "id": "sketch_028_76324fb3",
@@ -2345,8 +2317,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Granular Field"
+      "isPublic": true
     },
     {
       "id": "sketch_029_f8efdf18",
@@ -2541,8 +2512,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Ball Swarm"
+      "isPublic": true
     },
     {
       "id": "sketch_030_f42bb2c1",
@@ -2639,8 +2609,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Digital Abyss"
+      "isPublic": true
     },
     {
       "id": "sketch_031_b930d7b0",
@@ -2713,8 +2682,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Abs Field"
+      "isPublic": true
     },
     {
       "id": "sketch_032_2da64b3b",
@@ -2816,8 +2784,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Sixfold Spin"
+      "isPublic": true
     },
     {
       "id": "sketch_033_8c3ea581",
@@ -2890,8 +2857,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Rainbow Iteration"
+      "isPublic": true
     },
     {
       "id": "sketch_034_bf6872ba",
@@ -3011,8 +2977,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Rainbow Reciprocal"
+      "isPublic": true
     },
     {
       "id": "sketch_035_00fc09e0",
@@ -3075,8 +3040,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Deep Fractal"
+      "isPublic": true
     },
     {
       "id": "sketch_036_455bfdf1",
@@ -3175,8 +3139,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Log Ball Spiral"
+      "isPublic": true
     },
     {
       "id": "sketch_037_76df68f0",
@@ -3283,8 +3246,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Wave Split"
+      "isPublic": true
     },
     {
       "id": "sketch_038_f84372bb",
@@ -3360,8 +3322,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Mirror Square"
+      "isPublic": true
     },
     {
       "id": "sketch_039_9e1611ce",
@@ -3442,8 +3403,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Dot Wave Kaleido"
+      "isPublic": true
     },
     {
       "id": "sketch_040_aacd1abe",
@@ -3581,8 +3541,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Modulated Field"
+      "isPublic": true
     },
     {
       "id": "sketch_041_5d9ec901",
@@ -3660,8 +3619,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Hue Spiral"
+      "isPublic": true
     },
     {
       "id": "sketch_042_80031c05",
@@ -3795,8 +3753,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Extreme Warp"
+      "isPublic": true
     },
     {
       "id": "sketch_043_c18322a2",
@@ -3870,8 +3827,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Sine Distance"
+      "isPublic": true
     },
     {
       "id": "sketch_044_9832e961",
@@ -4053,8 +4009,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Hue Mirror Orbs"
+      "isPublic": true
     },
     {
       "id": "sketch_045_6d3bb45b",
@@ -4137,8 +4092,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Grid Balls"
+      "isPublic": true
     },
     {
       "id": "sketch_046_953ee5d5",
@@ -4272,8 +4226,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Outer Warp"
+      "isPublic": true
     },
     {
       "id": "sketch_047_2274f481",
@@ -4341,8 +4294,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Line Field"
+      "isPublic": true
     },
     {
       "id": "sketch_048_7e9f8526",
@@ -4489,8 +4441,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Dual Layer Orbs"
+      "isPublic": true
     },
     {
       "id": "sketch_049_9bd7689a",
@@ -4653,8 +4604,7 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true,
-      "name": "Warp Grid"
+      "isPublic": true
     }
   ]
 }

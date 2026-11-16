@@ -5,12 +5,12 @@
  * with stable IDs, verbatim shaders, variants, and derived uniform schemas.
  */
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 
 const REFERENCE_PATH = '/tmp/kilo/kaleidosync-docker/node_modules/@wearesage/vue/src/stores/sketches.ts';
-const OUTPUT_PATH = path.join(__dirname, 'assets', 'sketches.json');
+const OUTPUT_PATH = path.join(process.cwd(), 'assets', 'sketches.json');
 
 function extractSketches() {
   const content = fs.readFileSync(REFERENCE_PATH, 'utf-8');
