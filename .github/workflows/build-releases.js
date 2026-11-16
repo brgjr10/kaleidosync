@@ -38,7 +38,7 @@ async function main() {
   try {
     const headers = { Accept: 'application/vnd.github+json' };
     if (GH_TOKEN) headers.Authorization = `token ${GH_TOKEN}`;
-    const res = await fetch(`https://api.github.com/repos/${REPO}/releases`, { headers });
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=100`, { headers });
     if (!res.ok) throw new Error(`status ${res.status}`);
     releases = await res.json();
   } catch (e) {
@@ -46,10 +46,12 @@ async function main() {
     process.exit(0);
   }
 
-  if (!releases.length) {
+  if (!Array.isArray(releases) || !releases.length) {
     process.stderr.write('build-releases: no releases returned; leaving existing list intact\n');
     process.exit(0);
   }
+
+  releases.sort((a, b) => new Date(b.published_at || b.created_at || 0) - new Date(a.published_at || a.created_at || 0));
 
   const listHtml = buildList(releases);
   const noteText = buildNote(releases);
