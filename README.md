@@ -1,4 +1,4 @@
-# Kaleidosync Desktop
+# <img src="logo.png" alt="Kaleidosync" height="32" style="vertical-align: middle; margin-right: 8px;"> Kaleidosync Desktop
 
 Standalone desktop app that renders 50 Kaleidosync visualizers synced to system audio (Spotify, browser, any audio source) via OS loopback capture — no Spotify API, tokens, or DOM tapping required.
 
