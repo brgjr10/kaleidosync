@@ -93,6 +93,19 @@ function generateStableId(index, shader) {
   return `sketch_${String(index).padStart(3, '0')}_${hash}`;
 }
 
+function inferName(index, shader) {
+  // Derive a human-readable name from the shader's #define directive
+  const defineMatch = shader.match(/#define\s+(\w+)\s+([\d.]+)/);
+  if (defineMatch) {
+    const type = defineMatch[1];
+    const count = parseFloat(defineMatch[2]);
+    if (type === 'orbs') return `Orbs ${count}`;
+    if (type === 'BALLS') return `Balls ${count}`;
+    return `${type.charAt(0).toUpperCase() + type.slice(1)} ${count}`;
+  }
+  return `Custom ${index}`;
+}
+
 function processSketches(rawSketches) {
   return rawSketches.map((sketch, index) => {
     const variants = sketch.variants.map(v => {
@@ -123,6 +136,7 @@ function processSketches(rawSketches) {
     
     return {
       id: generateStableId(index, sketch.shader),
+      name: inferName(index, sketch.shader),
       index,
       shader: sketch.shader,
       variants,

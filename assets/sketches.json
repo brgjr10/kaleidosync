@@ -108,7 +108,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Orb Kaleidoscope"
     },
     {
       "id": "sketch_001_d73dc53f",
@@ -191,7 +192,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Hue Orbit"
     },
     {
       "id": "sketch_002_81fb8467",
@@ -294,7 +296,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Digital Abyss"
     },
     {
       "id": "sketch_003_0b9b8a99",
@@ -397,7 +400,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Extreme Warp"
     },
     {
       "id": "sketch_004_5c661eb8",
@@ -492,7 +496,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Warp Grid"
     },
     {
       "id": "sketch_005_0f3610c4",
@@ -565,7 +570,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Cosmic Swirl"
     },
     {
       "id": "sketch_006_7372fe0f",
@@ -668,7 +674,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Quantum Flux"
     },
     {
       "id": "sketch_007_f461c2f0",
@@ -771,7 +778,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Nebula Drift"
     },
     {
       "id": "sketch_008_dad31134",
@@ -832,7 +840,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Stellar Ring"
     },
     {
       "id": "sketch_009_dc3def90",
@@ -895,7 +904,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Magnetic Field"
     },
     {
       "id": "sketch_010_d93baf5b",
@@ -966,7 +976,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Solar Flares"
     },
     {
       "id": "sketch_011_bb79e01b",
@@ -1037,7 +1048,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Galaxy Spin"
     },
     {
       "id": "sketch_012_7c07a0e7",
@@ -1108,7 +1120,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Black Hole"
     },
     {
       "id": "sketch_013_bc811605",
@@ -1159,7 +1172,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Asteroid Belt"
     },
     {
       "id": "sketch_014_2e6a5290",
@@ -1225,7 +1239,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Comet Trail"
     },
     {
       "id": "sketch_015_9f140a9b",
@@ -1283,7 +1298,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Moon Phase"
     },
     {
       "id": "sketch_016_a64c9a48",
@@ -1336,7 +1352,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Sun Spot"
     },
     {
       "id": "sketch_017_2c376b19",
@@ -1407,7 +1424,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Aurora Borealis"
     },
     {
       "id": "sketch_018_6d7e541c",
@@ -1475,7 +1493,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Wave Function"
     },
     {
       "id": "sketch_019_7bb09b10",
@@ -1576,7 +1595,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Particle Storm"
     },
     {
       "id": "sketch_020_133a068f",
@@ -1649,7 +1669,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Field Rotation"
     },
     {
       "id": "sketch_021_c31ed6b1",
@@ -1743,7 +1764,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Orbital Decay"
     },
     {
       "id": "sketch_022_d015a9e6",
@@ -1858,7 +1880,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Quantum Leap"
     },
     {
       "id": "sketch_023_16c17223",
@@ -1951,7 +1974,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Wave-Particle"
     },
     {
       "id": "sketch_024_04519940",
@@ -2004,7 +2028,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Superposition"
     },
     {
       "id": "sketch_025_48fe2f92",
@@ -2062,7 +2087,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Entanglement"
     },
     {
       "id": "sketch_026_8b252f24",
@@ -2148,7 +2174,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Probability Cloud"
     },
     {
       "id": "sketch_027_4e65c7fc",
@@ -2239,7 +2266,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Spin Up"
     },
     {
       "id": "sketch_028_76324fb3",
@@ -2317,7 +2345,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Spin Down"
     },
     {
       "id": "sketch_029_f8efdf18",
@@ -2512,7 +2541,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Phase Shift"
     },
     {
       "id": "sketch_030_f42bb2c1",
@@ -2609,7 +2639,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Frequency Mod"
     },
     {
       "id": "sketch_031_b930d7b0",
@@ -2682,7 +2713,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Harmonic Series"
     },
     {
       "id": "sketch_032_2da64b3b",
@@ -2784,7 +2816,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Overtones"
     },
     {
       "id": "sketch_033_8c3ea581",
@@ -2857,7 +2890,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Fundamental"
     },
     {
       "id": "sketch_034_bf6872ba",
@@ -2977,7 +3011,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Resonance"
     },
     {
       "id": "sketch_035_00fc09e0",
@@ -3040,7 +3075,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Node"
     },
     {
       "id": "sketch_036_455bfdf1",
@@ -3139,7 +3175,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Anti-Node"
     },
     {
       "id": "sketch_037_76df68f0",
@@ -3246,7 +3283,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Standing Wave"
     },
     {
       "id": "sketch_038_f84372bb",
@@ -3322,7 +3360,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Traveling Wave"
     },
     {
       "id": "sketch_039_9e1611ce",
@@ -3403,7 +3442,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Doppler Shift"
     },
     {
       "id": "sketch_040_aacd1abe",
@@ -3541,7 +3581,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Interference"
     },
     {
       "id": "sketch_041_5d9ec901",
@@ -3619,7 +3660,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Diffraction"
     },
     {
       "id": "sketch_042_80031c05",
@@ -3753,7 +3795,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Polarization"
     },
     {
       "id": "sketch_043_c18322a2",
@@ -3827,7 +3870,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Photoelectric"
     },
     {
       "id": "sketch_044_9832e961",
@@ -4009,7 +4053,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Photon Cascade"
     },
     {
       "id": "sketch_045_6d3bb45b",
@@ -4092,7 +4137,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Gravity Well"
     },
     {
       "id": "sketch_046_953ee5d5",
@@ -4226,7 +4272,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Dark Matter"
     },
     {
       "id": "sketch_047_2274f481",
@@ -4294,7 +4341,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Event Horizon"
     },
     {
       "id": "sketch_048_7e9f8526",
@@ -4441,7 +4489,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Singularity"
     },
     {
       "id": "sketch_049_9bd7689a",
@@ -4604,7 +4653,8 @@
         }
       },
       "walletAddress": "6Qxu5cRDNFEZvYtgtvo27tdg7LuT5wuX7THqqPbBWJmT",
-      "isPublic": true
+      "isPublic": true,
+      "name": "Plasma Burst"
     }
   ]
 }
