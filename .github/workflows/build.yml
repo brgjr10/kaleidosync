@@ -12,6 +12,7 @@ on:
 env:
   NODE_VERSION: '20'
   ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
   build-linux:
@@ -63,13 +64,13 @@ jobs:
       - name: Build Linux AppImage
         id: build-appimage
         run: |
-          npm run build -- --linux AppImage
+          npm run build -- --linux AppImage --publish never
           echo "path=$(ls dist/*.AppImage | head -1)" >> $GITHUB_OUTPUT
 
       - name: Build Linux deb
         id: build-deb
         run: |
-          npm run build -- --linux deb
+          npm run build -- --linux deb --publish never
           echo "path=$(ls dist/*.deb | head -1)" >> $GITHUB_OUTPUT
 
       - name: Upload Linux artifacts
@@ -118,7 +119,7 @@ jobs:
       - name: Build Windows NSIS
         id: build-nsis
         run: |
-          npm run build -- --win nsis
+          npm run build -- --win nsis --publish never
           echo "path=$(ls dist/*.exe | head -1)" >> $GITHUB_OUTPUT
         env:
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
@@ -127,7 +128,7 @@ jobs:
       - name: Build Windows Portable
         id: build-portable
         run: |
-          npm run build -- --win portable
+          npm run build -- --win portable --publish never
           echo "path=$(ls dist/*.zip | head -1)" >> $GITHUB_OUTPUT
         env:
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
@@ -180,7 +181,7 @@ jobs:
       - name: Build macOS DMG
         id: build-dmg
         run: |
-          npm run build -- --mac dmg
+          npm run build -- --mac dmg --publish never
           echo "path=$(ls dist/*.dmg | head -1)" >> $GITHUB_OUTPUT
         env:
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
@@ -190,7 +191,7 @@ jobs:
       - name: Build macOS ZIP
         id: build-zip
         run: |
-          npm run build -- --mac zip
+          npm run build -- --mac zip --publish never
           echo "path=$(ls dist/*.zip | head -1)" >> $GITHUB_OUTPUT
         env:
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
