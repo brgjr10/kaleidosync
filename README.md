@@ -10,7 +10,7 @@ Standalone desktop app that renders 50 Kaleidosync visualizers synced to system 
 
 | Main UI | Hidden Mode |
 |---------|-------------|
-| ![Main UI](preview1.png) | ![Hidden Mode](preview2.png) |
+| <img src="preview2.png" alt="Main UI" width="400"> | <img src="preview1.png" alt="Hidden Mode" width="400"> |
 
 ---
 
