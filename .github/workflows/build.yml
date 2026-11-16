@@ -285,12 +285,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Bake release list into demo site
-        run: node .github/workflows/build-releases.js index.html
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
