@@ -1020,10 +1020,8 @@
     </div>
   </footer>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r168.0/three.min.js" crossorigin="anonymous"></script>
   <script type="module">
-    const THREE = window.THREE;
-    if (THREE) {
+    import * as THREE from 'https://esm.sh/three@0.168.0';
 
     // ---------------- Config / sketch catalog (real names) ----------------
     const SKETCHES = [
@@ -1436,11 +1434,6 @@ void main(){
     // initial sketch
     renderChips();
     selectSketch();
-
-    } else {
-      const wrap = document.getElementById('canvas-wrap');
-      if (wrap) wrap.innerHTML = '<div style="color:#ff3366;text-align:center;padding:40px;font-family:sans-serif">Visualizer unavailable (Three.js failed to load).</div>';
-    }
 
     // auto-update release list from GitHub API
     const releaseList = document.getElementById('release-list');
