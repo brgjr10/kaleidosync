@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaleidosync — Audio-Reactive Visualizer Demo</title>
+  <meta name="description"
+    content="Interactive demo of Kaleidosync: 50 audio-reactive visualizers synced to system audio. Linux, Windows, macOS.">
+  <style>
+    :root {
+      --bg: #050507;
+      --panel: rgba(20, 20, 26, 0.72);
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #e8e8ea;
+      --muted: #9aa0a6;
+      --accent: #00ff88;
+      --accent2: #7c3aed;
+      --danger: #ff3366;
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none
+    }
+
+    a:hover {
+      text-decoration: underline
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+    }
+
+    /* ---------- Background visual ---------- */
+    #canvas-wrap {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000
+    }
+
+    #canvas-wrap canvas {
+      display: block;
+      width: 100%;
+      height: 100%
+    }
+
+    body {
+      position: relative;
+      z-index: 10
+    }
+
+    section {
+      position: relative;
+      z-index: 10
+    }
+
+    /* ---------- Header / Nav ---------- */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(14px);
+      background: rgba(5, 5, 7, 0.55);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 28px;
+      max-width: 1200px;
+      margin: 0 auto
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      font-size: 17px
+    }
+
+    .brand .mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #00ff88, #7c3aed);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 12px;
+      color: #000
+    }
+
+    nav .menu {
+      display: flex;
+      gap: 26px;
+      align-items: center
+    }
+
+    nav .menu a {
+      color: var(--muted);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 6px 0;
+      position: relative
+    }
+
+    nav .menu a::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transition: transform .2s
+    }
+
+    nav .menu a:hover::after,
+    .nav-active::after {
+      transform: scaleX(1)
+    }
+
+    nav .menu a:hover,
+    .nav-active {
+      color: var(--text)
+    }
+
+    .cta {
+      background: var(--accent);
+      color: #000;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-weight: 700;
+      font-size: 13px
+    }
+
+    .cta:hover {
+      opacity: .9;
+      box-shadow: 0 0 20px rgba(0, 255, 136, .35)
+    }
+
+    /* ---------- Hero ---------- */
+    .hero {
+      position: relative;
+      min-height: 70vh;
+      background: transparent
+    }
+
+    .hero-layer {
+      position: relative;
+      z-index: 20;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 40px 24px 0;
+      color: #fff
+    }
+
+    .hero h1 {
+      font-size: clamp(28px, 6vw, 64px);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+      text-transform: uppercase;
+      text-shadow: 0 2px 20px rgba(0, 0, 0, .6);
+      margin-bottom: 10px
+    }
+
+    .hero p {
+      font-size: clamp(14px, 2vw, 20px);
+      color: var(--muted);
+      max-width: 62ch;
+      margin: 0 auto 18px
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+      background: var(--panel);
+      backdrop-filter: blur(6px)
+    }
+
+    .btn:hover {
+      border-color: rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.06)
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #000;
+      border-color: transparent
+    }
+
+    .btn.secondary {
+      background: var(--accent2);
+      color: #fff;
+      border-color: transparent
+    }
+
+    .hero-overlay {
+      position: relative;
+      z-index: 30;
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+      padding: 0 24px;
+      margin-top: 14px
+    }
+
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px 4px;
+      border-radius: 50px;
+      border: 1px solid var(--border)
+    }
+
+    .chip-row::-webkit-scrollbar {
+      display: none
+    }
+
+    .chip {
+      font-size: 11.5px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+      flex-shrink: 0
+    }
+
+    .chip.active {
+      color: #fff;
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0, 255, 136, .12)
+    }
+
+    .meters {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.45);
+      padding: 8px 16px;
+      border-radius: 50px;
+      border: 1px solid var(--border)
+    }
+
+    .meter {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px
+    }
+
+    .meter .lab {
+      font-size: 10px;
+      color: var(--muted)
+    }
+
+    .meter .bar {
+      width: 56px;
+      height: 7px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      overflow: hidden
+    }
+
+    .meter .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00ff88, #7c3aed);
+      width: 0%;
+      transition: width .06s linear
+    }
+
+    .meter .val {
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--text)
+    }
+
+    /* ---------- Sections ---------- */
+    section {
+      padding: 72px 24px;
+      max-width: 1100px;
+      margin: 0 auto
+    }
+
+    .sec-head {
+      margin-bottom: 40px;
+      text-align: center
+    }
+
+    .sec-head .kicker {
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 800;
+      display: block;
+      margin-bottom: 8px
+    }
+
+    .sec-head h2 {
+      font-size: clamp(26px, 3vw, 40px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px
+    }
+
+    .sec-head p {
+      color: var(--muted);
+      max-width: 56ch;
+      margin: 0 auto;
+      font-size: 16px
+    }
+
+    .grid {
+      display: grid;
+      gap: 22px
+    }
+
+    .grid.cols3 {
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr))
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 26px;
+      backdrop-filter: blur(8px)
+    }
+
+    .card h3 {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 14.5px
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 2px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      margin-top: 10px
+    }
+
+    .tag.linux {
+      color: #00ff88;
+      border-color: rgba(0, 255, 136, .35);
+      background: rgba(0, 255, 136, .08)
+    }
+
+    .tag.win {
+      color: #00a1ff;
+      border-color: rgba(0, 161, 255, .35);
+      background: rgba(0, 161, 255, .08)
+    }
+
+    .tag.mac {
+      color: #a2a2a2;
+      border-color: rgba(162, 162, 162, .35);
+      background: rgba(162, 162, 162, .08)
+    }
+
+    /* pipeline */
+    .pipe {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 34px
+    }
+
+    .pipe .step {
+      flex: 1;
+      min-width: 150px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 14px;
+      text-align: center;
+      position: relative
+    }
+
+    .pipe .step .num {
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 8px
+    }
+
+    .pipe .step h4 {
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 6px
+    }
+
+    .pipe .step p {
+      font-size: 12.5px;
+      color: var(--muted)
+    }
+
+    .pipe .arrow {
+      font-size: 16px;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0
+    }
+
+    .detail {
+      margin-top: 30px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      display: none
+    }
+
+    .detail.open {
+      display: block
+    }
+
+    .detail h4 {
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: var(--accent)
+    }
+
+    .detail ul {
+      color: var(--muted);
+      font-size: 14px;
+      padding-left: 20px
+    }
+
+    .detail li {
+      margin-bottom: 6px
+    }
+
+    .tog {
+      margin-left: auto;
+      background: var(--border);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 8px
+    }
+
+    .tog.on {
+      background: var(--accent);
+      color: #000
+    }
+
+    /* platforms */
+    .plat {
+      display: flex;
+      flex-direction: column;
+      gap: 12px
+    }
+
+    .plat .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px
+    }
+
+    .plat .row a {
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.25)
+    }
+
+    .plat .row a:hover {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    /* credits table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px
+    }
+
+    th {
+      text-align: left;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text)
+    }
+
+    tr:last-child td {
+      border-bottom: none
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.03)
+    }
+
+    /* releases */
+    .release-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 26px;
+      display: flex;
+      gap: 22px;
+      align-items: flex-start
+    }
+
+    .release-badge {
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 900;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      background: rgba(0, 255, 136, .1)
+    }
+
+    .release-body h3 {
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 4px
+    }
+
+    .release-body .meta {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-bottom: 8px
+    }
+
+    .release-body p {
+      color: var(--muted);
+      font-size: 14px
+    }
+
+    .rel-cta {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px
+    }
+
+    .rel-list {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    .rel-list li {
+      border-bottom: 1px solid var(--border);
+      padding: 6px 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px
+    }
+
+    .rel-list li:last-child {
+      border-bottom: none
+    }
+
+    .actions-bar {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 34px
+    }
+
+    .skip {
+      position: absolute;
+      left: -9999px
+    }
+
+    /* footer */
+    footer {
+      position: relative;
+      z-index: 20;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      padding: 40px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12.5px
+    }
+
+    footer .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap
+    }
+
+    footer .copy {
+      font-size: 12px
+    }
+
+    /* hidden mode / keyboard hint */
+    .kbd {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1px 8px;
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--text)
+    }
+
+    .hints {
+      position: relative;
+      bottom: auto;
+      left: auto;
+      transform: none;
+      z-index: 35;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 12px;
+      pointer-events: none
+    }
+
+    @media (max-width:640px) {
+      .hero {
+        height: 58vh
+      }
+
+      .pipe .arrow {
+        display: none
+      }
+
+      .pipe .step {
+        flex: 1 1 100%;
+        min-width: unset
+      }
+
+      .release-card {
+        flex-direction: column;
+        gap: 14px
+      }
+
+      .actions-bar {
+        flex-direction: column;
+        align-items: center
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <a href="#releases" class="skip">Skip to releases</a>
+
+  <header>
+    <div class="nav-wrap">
+      <a href="#" class="brand" aria-label="Kaleidosync home"><span class="mark">K</span> Kaleidosync</a>
+      <nav>
+        <div class="menu">
+          <a href="#visuals" class="nav-active">Visuals</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#platforms">Platforms</a>
+          <a href="#credits">Credits</a>
+          <a href="#releases">Releases</a>
+        </div>
+      </nav>
+      <a href="#releases" class="cta">Get Kaleidosync</a>
+    </div>
+  </header>
+
+  <!-- ======================= HERO ======================= -->
+  <section class="hero" id="visuals">
+    <div id="canvas-wrap"></div>
+    <div class="hero-layer">
+      <h1>Kaleidosync</h1>
+      <p>50 audio-reactive visualizers synced to system audio — no API keys, no tokens, no DOM tapping.</p>
+      <div class="hero-actions">
+        <a href="#releases" class="btn primary">Download <span>▸</span></a>
+        <a href="https://github.com/brgjr10/kaleidosync" class="btn">View on GitHub</a>
+      </div>
+    </div>
+    <div class="hero-overlay">
+      <div class="chip-row" id="chip-row"></div>
+      <div class="meters" id="meters">
+        <div class="meter"><span class="lab">Volume</span>
+          <div class="bar">
+            <div class="fill" id="fill-volume"></div>
+          </div><span class="val" id="val-volume">0%</span>
+        </div>
+        <div class="meter"><span class="lab">Bass</span>
+          <div class="bar">
+            <div class="fill" id="fill-bass"></div>
+          </div><span class="val" id="val-bass">0%</span>
+        </div>
+        <div class="meter"><span class="lab">Treble</span>
+          <div class="bar">
+            <div class="fill" id="fill-treble"></div></span><span class="val" id="val-treble">0%</span>
+          </div>
+          <div class="meter"><span class="lab">BPM</span>
+            <div class="bar">
+              <div class="fill" id="fill-bpm" style="background:var(--accent2)"></div>
+            </div><span class="val" id="val-bpm">0</span>
+          </div>
+        </div>
+        <div class="hints">
+          <span class="kbd">← / →</span> sketch &nbsp;
+          <span class="kbd">R</span> random &nbsp;
+          <span class="kbd">M</span> magic tween &nbsp;
+          <span class="kbd">F</span> fullscreen &nbsp;
+          <span class="kbd">U</span> hide UI
+        </div>
+      </div>
+  </section>
+
+  <!-- ======================= HOW IT WORKS ======================= -->
+  <section id="how-it-works">
+    <div class="sec-head">
+      <span class="kicker">How it works</span>
+      <h2>System audio → shaders, every frame</h2>
+      <p>Kaleidosync captures loopback/monitor audio from your OS, analyses it into volume, bass, treble and BPM, and
+        feeds those values into GLSL uniforms that drive 50 shader sketches in real time.</p>
+    </div>
+
+    <div class="pipe">
+      <div class="step">
+        <span class="num">01</span>
+        <h4>Audio capture</h4>
+        <p>Loopback / monitor source via PipeWire (<code>pw-record</code>) or PulseAudio (<code>parec</code>) on Linux,
+          WASAPI loopback on Windows, ScreenCaptureKit / BlackHole on macOS.</p>
+      </div>
+      <span class="arrow">▸</span>
+      <div class="step">
+        <span class="num">02</span>
+        <h4>Real-time analysis</h4>
+        <p>Per-sample RMS volume, 80 Hz low-pass bass, 2 kHz high-pass treble and beat-detected BPM — NaN-sanitized so
+          one bad sample can't kill the pipeline.</p>
+      </div>
+      <span class="arrow">▸</span>
+      <div class="step">
+        <span class="num">03</span>
+        <h4>Shader uniforms</h4>
+        <p>Audio values are interpolated ("magic" tweening) and sent as <code>iTime</code>, <code>iResolution</code>,
+          <code>stream</code>, <code>volume</code>, <code>bass</code>, <code>treble</code>, <code>bpm</code> uniforms to
+          the sketch shader.</p>
+      </div>
+      <span class="arrow">▸</span>
+      <div class="step">
+        <span class="num">04</span>
+        <h4>Visuals render</h4>
+        <p>Three.js full-screen quad runs each of the 50 GLSL fragment shaders (kaleidoscope, orbs, rotation, colour
+          cycling) synced to the beat.</p>
+      </div>
+    </div>
+
+    <button class="tog" id="pipe-tog">Show pipeline detail ▾</button>
+    <div class="detail" id="pipe-detail">
+      <h4>What each piece does</h4>
+      <ul>
+        <li><strong>Main process</strong> (<code>app/main.js</code>) — owns the singleton <code>AudioCapture</code>,
+          forwards <code>'audio:analytics-update'</code> to the renderer over Electron IPC.</li>
+        <li><strong>Audio capture</strong> (<code>src/audio/audio-capture.js</code>) — spawns
+          <code>pw-record</code>/<code>parec</code>, reads PCM, computes volume/bass/treble/BPM every frame.</li>
+        <li><strong>Renderer</strong> (<code>app/renderer.js</code>) — Three.js shader harness;
+          <code>wrapMainImage()</code> splits global scope from <code>main()</code>/<code>mainImage()</code> for GLSL ES
+          1.0 compatibility.</li>
+        <li><strong>Variants</strong> — per-sketch variant sets with <code>Tween</code>/<code>TweenProgress</code> bool
+          interpolation; <code>M</code> triggers a magic tween between variants.</li>
+        <li><strong>Catalog</strong> — 50 sketches / 92 variants loaded from <code>assets/sketches.json</code> via IPC
+          (no brittle <code>file://</code> relative fetch).</li>
+        <li><strong>MPRIS</strong> — track title/artist/album plus Prev/Play-Pause/Next controls, shown above the meters
+          and mirrored in hidden mode (<code>U</code>).</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ======================= PLATFORMS ======================= -->
+  <section id="platforms">
+    <div class="sec-head">
+      <span class="kicker">Platforms</span>
+      <h2>What it runs on</h2>
+      <p>Cross-platform desktop builds produced by CI on every push to <code>main</code>, attached as release assets.
+      </p>
+    </div>
+    <div class="grid cols3">
+      <div class="card">
+        <div class="tag linux">Linux</div>
+        <h3>AppImage &amp; .deb</h3>
+        <p>x86_64 AppImage (~109 MB) and Debian/Ubuntu .deb (~75 MB). Captures PipeWire or PulseAudio loopback. Prefer
+          sources named "Monitor" or "Loopback".</p>
+        <div class="plat row">
+          <a href="#releases">AppImage (x86_64)</a>
+          <a href="#releases">.deb (x86_64)</a>
+        </div>
+      </div>
+      <div class="card">
+        <div class="tag win">Windows</div>
+        <h3>NSIS installer &amp; portable</h3>
+        <p>WASAPI loopback capture — built in, no extra drivers. NSIS installer (.exe) and a portable .zip bundle.</p>
+        <div class="plat row">
+          <a href="#releases">NSIS installer (.exe)</a>
+          <a href="#releases">Portable (.zip)</a>
+        </div>
+      </div>
+      <div class="card">
+        <div class="tag mac">macOS</div>
+        <h3>DMG &amp; ZIP</h3>
+        <p>ScreenCaptureKit / BlackHole capture (experimental). Universal DMG and ZIP builds for Apple Silicon and
+          Intel.</p>
+        <div class="plat row">
+          <a href="#releases">DMG (universal)</a>
+          <a href="#releases">ZIP (universal)</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= CREDITS ======================= -->
+  <section id="credits">
+    <div class="sec-head">
+      <span class="kicker">Credits</span>
+      <h2>Who built every piece</h2>
+      <p>Kaleidosync began as a rewrite of zachwinter's Kaleidosync; the shaders and sketch catalog come from the
+        @wearesage/vue reference. Everything else is original to this repo.</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Piece</th>
+          <th>Built by</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Kaleidosync Desktop (this repo)</strong></td>
+          <td><a href="https://github.com/brgjr10">brgjr10</a> (maintainer)</td>
+          <td>Full rewrite: module system, audio capture, shader wiring, variant interpolation, IPC bridge, UI gating,
+            MPRIS, BPM detection, desktop packaging.</td>
+        </tr>
+        <tr>
+          <td>Original Kaleidosync concept</td>
+          <td><a href="https://github.com/zachwinter">zachwinter</a></td>
+          <td>Original repository that this project was rewritten from.</td>
+        </tr>
+        <tr>
+          <td>GLSL utilities &amp; sketch catalog</td>
+          <td><a href="https://www.npmjs.com/package/@wearesage/vue">@wearesage/vue</a></td>
+          <td><code>glsl-util.ts</code> helpers (<code>k_kale</code>, <code>k_orb</code>, <code>k_swap</code>…) and the
+            50-sketch / 92-variant catalog.</td>
+        </tr>
+        <tr>
+          <td>Desktop framework</td>
+          <td>Electron (OpenJS Foundation)</td>
+          <td>Main/renderer processes, preload bridge, auto-updater-friendly build via electron-builder.</td>
+        </tr>
+        <tr>
+          <td>WebGL rendering</td>
+          <td>three.js (mr.doob)</td>
+          <td>Full-screen ShaderMaterial harness driving each GLSL sketch.</td>
+        </tr>
+        <tr>
+          <td>Audio backends</td>
+          <td>PipeWire / PulseAudio · WASAPI · ScreenCaptureKit</td>
+          <td>OS loopback/monitor capture; no Spotify API, no tokens, no DOM tapping.</td>
+        </tr>
+        <tr>
+          <td>Desktop integration</td>
+          <td>MPRIS (Linux)</td>
+          <td>Track metadata + playback controls, gated to "playing" state; hidden-mode panel mirror.</td>
+        </tr>
+        <tr>
+          <td>CI / releases</td>
+          <td>GitHub Actions</td>
+          <td>Builds Linux/Windows/macOS on every push and auto-publishes a release tagged
+            <code>v2.0.0-&lt;sha&gt;</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ======================= RELEASES ======================= -->
+  <section id="releases">
+    <div class="sec-head">
+      <span class="kicker">Releases</span>
+      <h2>Download the app</h2>
+      <p>A new versioned release is published automatically on every push to <code>main</code>. All platforms are built
+        by GitHub Actions.</p>
+    </div>
+    <div class="release-card">
+      <div class="release-badge">Latest release</div>
+      <div class="release-body">
+        <h3>Kaleidosync Desktop <span style="font-weight:600">v2.0.0</span></h3>
+        <div class="meta">Published automatically from <code>main</code> · MIT License</div>
+        <p>8 assets per release: Linux AppImage + .deb, Windows NSIS installer + portable ZIP, macOS DMG + ZIP. Check
+          the releases page for the exact tag and changelog.</p>
+        <div class="rel-cta">
+          <a href="https://github.com/brgjr10/kaleidosync/releases" class="btn primary" target="_blank"
+            rel="noopener">Open releases page ▸</a>
+          <a href="https://github.com/brgjr10/kaleidosync/releases/latest" class="btn" target="_blank"
+            rel="noopener">Latest asset downloads ▸</a>
+        </div>
+      </div>
+    </div>
+    <div class="rel-list">
+      <ul id="release-list"></ul>
+      <p id="release-note" style="font-size:12px;color:var(--muted);margin-top:6px">Loading releases…</p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="row">
+      <div class="copy">Kaleidosync · MIT License · Built by <a href="https://github.com/brgjr10"
+          style="color:var(--accent)">brgjr10</a> · Original concept by <a href="https://github.com/zachwinter"
+          style="color:var(--accent)">zachwinter</a> · Shaders from <a href="https://github.com/wearesage/vue"
+          style="color:var(--accent)">@wearesage/vue</a></div>
+      <div><a href="https://github.com/brgjr10/kaleidosync" style="color:var(--text)">GitHub repo</a> &nbsp;|&nbsp; <a
+          href="https://github.com/brgjr10/kaleidosync/releases" style="color:var(--accent)">Releases</a> &nbsp;|&nbsp;
+        <a href="https://github.com/brgjr10/kaleidosync/issues" style="color:var(--text)">Issues</a></div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import * as THREE from 'https://esm.sh/three@0.168.0';
+
+    // ---------------- Config / sketch catalog (real names) ----------------
+    const SKETCHES = [
+      { id: 'sketch_000', name: 'Orb Kaleidoscope', mode: 0 },
+      { id: 'sketch_001', name: 'Hue Orbit', mode: 1 },
+      { id: 'sketch_002', name: 'Digital Abyss', mode: 2 },
+      { id: 'sketch_003', name: 'Extreme Warp', mode: 3 },
+      { id: 'sketch_004', name: 'Warp Grid', mode: 4 },
+      { id: 'sketch_005', name: 'Cosmic Swirl', mode: 5 },
+      { id: 'sketch_006', name: 'Quantum Flux', mode: 6 },
+      { id: 'sketch_007', name: 'Nebula Drift', mode: 7 },
+      { id: 'sketch_008', name: 'Stellar Ring', mode: 8 },
+      { id: 'sketch_009', name: 'Magnetic Field', mode: 9 },
+      { id: 'sketch_010', name: 'Solar Flares', mode: 10 },
+      { id: 'sketch_011', name: 'Galaxy Spin', mode: 11 },
+      { id: 'sketch_012', name: 'Black Hole', mode: 12 },
+      { id: 'sketch_013', name: 'Asteroid Belt', mode: 13 },
+      { id: 'sketch_014', name: 'Comet Trail', mode: 14 },
+      { id: 'sketch_015', name: 'Moon Phase', mode: 15 },
+      { id: 'sketch_016', name: 'Sun Spot', mode: 16 },
+      { id: 'sketch_017', name: 'Prism Fold', mode: 17 },
+      { id: 'sketch_018', name: 'Liquid Mirror', mode: 18 },
+      { id: 'sketch_019', name: 'Vertex Echo', mode: 19 },
+    ];
+    let currentIdx = 0;
+    let variantIdx = 0;
+    let magicTween = 0;
+
+    // ---------------- Audio analysis ----------------
+    let analyser, dataArray, sourceNode, audioCtx, useLive = false;
+    const bassHist = [], trebleHist = [], volHist = [];
+    let lastBeatTime = 0, bpm = 0, beatFlash = 0;
+    const MIN_BEAT_MS = 220;
+    const SMOOTH = 0.25;
+
+    const state = {
+      time: 0,
+      volume: 0,
+      bass: 0,
+      treble: 0,
+      bpm: 0,
+      beat: 0,
+    };
+
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function rms(samples) {
+      let sum = 0;
+      for (let i = 0; i < samples.length; i++) { const s = samples[i]; sum += (isFinite(s) ? s : 0) * (isFinite(s) ? s : 0); }
+      return Math.sqrt(sum / samples.length);
+    }
+
+    async function initAudio() {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        dataArray = new Float32Array(analyser.frequencyBinCount);
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          useLive = true;
+        } catch (e) {
+          // fallback: synthesized audio so the demo is always reactive
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+          osc.connect(gain); gain.connect(analyser);
+          osc.start();
+          useLive = false;
+        }
+        sourceNode = audioCtx.createMediaStreamSource(stream);
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      } catch (e) {
+        console.warn('audio init failed', e);
+      }
+    }
+
+    function analyse() {
+      if (!analyser) return;
+      analyser.getFloatFrequencyData(dataArray);
+      const bins = dataArray.length;
+      // bass: low bins (approx < 160 Hz), treble: high bins (> 2 kHz)
+      const bassEnd = Math.floor(bins * 160 / (audioCtx.sampleRate / 2));
+      const trebleStart = Math.floor(bins * 2000 / (audioCtx.sampleRate / 2));
+      let bassSum = 0, trebleSum = 0, nB = 0, nT = 0;
+      for (let i = 0; i < bassEnd; i++) { const v = dataArray[i]; if (isFinite(v)) { bassSum += v; nB++; } }
+      for (let i = trebleStart; i < bins; i++) { const v = dataArray[i]; if (isFinite(v)) { trebleSum += v; nT++; } }
+      const bassRaw = nB ? bassSum / nB : -100;
+      const trebleRaw = nT ? trebleSum / nT : -100;
+      // volume from time-domain RMS
+      const timeArray = new Float32Array(analyser.fftSize);
+      analyser.getFloatTimeDomainData(timeArray);
+      const volRaw = rms(timeArray);
+
+      // smooth
+      state.volume += (volRaw - state.volume) * SMOOTH;
+      state.bass += (bassRaw - state.bass) * SMOOTH * 1.4;
+      state.treble += (trebleRaw - state.treble) * SMOOTH * 1.4;
+
+      volHist.push(state.volume); if (volHist.length > 40) volHist.shift();
+      bassHist.push(state.bass); if (bassHist.length > 40) bassHist.shift();
+
+      // beat detection on bass energy
+      const avgBass = bassHist.length ? bassHist.reduce((a, b) => a + b, 0) / bassHist.length : state.bass;
+      const now = performance.now();
+      if (state.bass > avgBass * 1.35 && state.bass > -45 && now - lastBeatTime > MIN_BEAT_MS) {
+        lastBeatTime = now;
+        const interval = now - (lastBeatTime - MIN_BEAT_MS);
+        const instBpm = 60000 / Math.max(interval, 60);
+        if (instBpm > 60 && instBpm < 220) {
+          bpm = bpm ? bpm * 0.7 + instBpm * 0.3 : instBpm;
+        }
+        beatFlash = 1;
+      }
+      beatFlash *= 0.85;
+      state.bpm = bpm;
+      state.beat = beatFlash;
+    }
+
+    // ---------------- Three.js scene ----------------
+    const wrap = document.getElementById('canvas-wrap');
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    wrap.appendChild(renderer.domElement);
+
+    const uniforms = {
+      uTime: { value: 0 },
+      uResolution: { value: new THREE.Vector2() },
+      uVolume: { value: 0 },
+      uBass: { value: 0 },
+      uTreble: { value: 0 },
+      uBpm: { value: 0 },
+      uBeat: { value: 0 },
+      uMode: { value: 0 },
+      uVariant: { value: 0 },
+      uTween: { value: 0 },
+      uMouse: { value: new THREE.Vector2(0, 0) },
+    };
+
+    const vertexShader = `
+varying vec2 vUv;
+void main(){
+  vUv = position.xy * 0.5 + 0.5;
+  gl_Position = vec4(position, 1.0);
+}`;
+
+    // Shared GLSL utilities mirroring kaleidosync's glsl-utils
+    const glslUtils = `
+#define PI 3.141592653589793
+vec2 k_uv(vec2 uv){ return uv - 0.5; }
+mat2 k_rot(float a){ return mat2(cos(a), -sin(a), sin(a), cos(a)); }
+float k_kale_sides(vec2 uv, float sides){
+  float ang = atan(uv.y, uv.x);
+  ang = ((ang / PI) + 1.0) * 0.5;
+  ang = mod(ang, 1.0 / sides) * sides;
+  ang = -abs(2.0 * ang - 1.0) + 1.0;
+  return ang * length(uv);
+}
+vec4 k_orb(vec2 uv, float size, vec2 pos, vec3 col, float contrast){
+  return pow(vec4(size / length(uv + pos) * col, 1.0), vec4(contrast));
+}
+vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d){
+  return a + b * cos(2.0 * PI * (c * t + d));
+}
+`;
+
+    const fragmentShader = glslUtils + `
+uniform float uTime, uVolume, uBass, uTreble, uBpm, uBeat, uMode, uVariant, uTween;
+uniform vec2 uResolution, uMouse;
+varying vec2 vUv;
+
+void main(){
+  vec2 uv = k_uv(vUv);
+  uv *= uResolution.x / uResolution.y;
+  float stream = uTime * 0.5 + uVolume * 2.0;
+  float bass = uBass * 0.6 + uBeat * 1.5;
+  float treble = uTreble * 0.5;
+  float vol = pow(uVolume, 0.6);
+  vec3 col = vec3(0);
+  float mode = uMode;
+  float mixT = uTween;
+
+  if (mode < 1.5){
+    // Orb Kaleidoscope
+    float sides = 1.0 + uVariant * 6.0;
+    float zoom = mix(26.5, 53.0, mixT) + bass * 4.0;
+    uv *= zoom;
+    uv *= k_rot(stream / 15.0);
+    uv = vec2(k_kale_sides(uv, sides), length(uv));
+    uv *= k_rot(stream / 5.0);
+    float orbs = 20.0;
+    for (float i = 0.0; i < orbs; i++){
+      uv.x += 0.6 * sin(0.4 * uv.y - stream);
+      uv.y -= 0.7 * cos(0.5 * uv.x + stream);
+      float t = i * PI / orbs * 2.0;
+      float x = 4.0 * tan(t + stream / 10.0);
+      float y = 4.0 * cos(t - stream / 10.0);
+      vec3 c = cos(vec3(-2,0,-1) * PI * 2.0 / 3.0 + PI * (i / 5.0)) * 0.5 + 0.5;
+      col += k_orb(uv, vol * mix(1.3, 2.0, mixT), vec2(x,y), c, mix(1.3, 2.1, mixT)).xyz;
+    }
+  } else if (mode < 2.5){
+    // Hue Orbit / rotating balls
+    float balls = 15.0;
+    float zoom = mix(763.0, 200.0, mixT) + treble * 300.0;
+    uv *= zoom * 0.001;
+    uv *= k_rot(stream / -4.0);
+    float sides = 1.0 + uVariant * 2.0;
+    uv = vec2(k_kale_sides(uv, sides), length(uv));
+    uv *= k_rot(stream / 2.75);
+    col = vec3(0);
+    for (float i = 0.0; i < balls; i++){
+      uv *= k_rot(stream / -5.0 * PI / 20.0);
+      float t = i * PI / balls * 3.0;
+      float x = 0.35 * sin(0.2 * t - stream);
+      float y = 1.7 * cos(1.7 * t - stream / 1.7);
+      vec2 p = vec2(5000.0 * x, 5000.0 * y);
+      p /= 22.0 * sin(PI * sin(uv.x / 114.0 - stream / 2.0));
+      vec3 c = cos(vec3(0,1,-1) * PI * 2.0 / 3.0 + PI * (5.0 + i / 5.0)) * 0.5 + 0.5;
+      col += vec4(vol * mix(90.0, 120.0, mixT) / length(uv - p * 0.9) * c, 1.0).xyz;
+    }
+    col = pow(col, vec3(mix(1.8, 2.2, mixT)));
+  } else if (mode < 3.5){
+    // Digital Abyss warp
+    float zoom = mix(9.7, 40.0, mixT) + bass * 3.0;
+    uv *= zoom;
+    float dist = length(uv);
+    uv *= k_rot(dist / 50.0 + stream / 50.0);
+    float orbs = 20.0;
+    for (float i = 0.0; i < orbs; i++){
+      uv.x += 2.2 * sin(uv.y * 0.11 + stream) + cos(uv.y / 19.0 - stream / 2.0);
+      uv.y -= 1.5 * cos(uv.x * 0.29 + stream) - sin(uv.x / 19.0 - stream / 2.0);
+      float t = i * PI / orbs * 2.0;
+      float x = 39.0 * tan(t - stream / 6.0);
+      float y = 39.0 * sin(t + stream / 8.0);
+      vec3 c = cos(vec3(-2,0,-1) * PI * 2.0 / 3.0 + PI * (i / 7.0)) * 0.5 + 0.5;
+      col += k_orb(uv, vol * mix(4.3, 6.0, mixT), vec2(x,y), c, mix(1.2, 1.5, mixT)).xyz;
+    }
+    col = pow(col, vec3(mix(1.2, 1.6, mixT)));
+  } else if (mode < 4.5){
+    // Extreme Warp kaleidoscope
+    float sides = 1.0 + uVariant * 7.0;
+    float zoom = mix(40.4, 15.0, mixT);
+    uv *= zoom;
+    uv = vec2(k_kale_sides(uv, sides), length(uv));
+    uv *= k_rot(stream / 10.0);
+    float orbs = 20.0;
+    for (float i = 0.0; i < orbs; i++){
+      uv.x += 0.0 * sin(uv.y * 0.0 + stream * -22.0) + cos(uv.y / 5.89 - stream / 2.0);
+      uv.y -= 3.0 * cos(uv.x * 0.4 + stream * -2.0) - sin(uv.x / 5.89 - stream / 2.0);
+      float t = i * PI / orbs * 2.0;
+      float x = 14.0 * cos(t - stream / 11.0);
+      float y = 14.0 * sin(t + stream / 11.0);
+      vec3 c = cos(vec3(-2,0,-1) * PI * 2.0 / 3.0 + PI * (i / 7.0)) * 0.5 + 0.5;
+      col += k_orb(uv, pow(vol, 0.8) * mix(5.0, 7.0, mixT), vec2(x,y), c, mix(1.2, 1.6, mixT)).xyz;
+    }
+    col = pow(col, vec3(mix(1.2, 1.5, mixT)));
+  } else if (mode < 5.5){
+    // Warp Grid inversion swap
+    float zoom = mix(0.1, 10.5, mixT);
+    uv *= zoom;
+    float s = stream / 0.532;
+    float dist = length(uv);
+    vec2 warped = uv / dot(uv, uv);
+    bool warp = uVariant > 0.5;
+    float tp = fract(uTween);
+    uv = warp ? mix(uv, warped, tp) : mix(warped, uv, tp);
+    uv *= k_rot(stream / 10.0);
+    float orbs = 20.0;
+    for (float i = 0.0; i < orbs; i++){
+      uv.x += sin((i+1.0) * uv.y / 15.4 - stream / 2.0);
+      uv.y += cos((i+1.0) * uv.x / 32.9 + stream / 2.0);
+      float t = i * PI / orbs * 20.0;
+      float x = 1.0 * sin(t);
+      float y = 1.0 * cos(t);
+      vec3 c = cos(vec3(-2,0,-1) * PI * 2.0 / 3.0 + PI * (i / 10.0)) * 0.5 + 0.5;
+      col += k_orb(uv, pow(vol, 0.79) * mix(1.7, 1.1, mixT), vec2(x,y), c, mix(1.5, 1.2, mixT)).xyz;
+    }
+    col = pow(col, vec3(mix(1.5, 1.2, mixT)));
+  } else if (mode < 6.5){
+    // Cosmic Swirl
+    float zoom = mix(25.3, 60.0, mixT) + bass * 5.0;
+    uv *= zoom;
+    uv = normalize(uv + sin(abs(1.0 / length(uv) * 20.0 * uv) - stream / 2.0)) * length(uv);
+    uv += dot(sin(uv + stream), cos(uv + stream));
+    uv *= k_rot(5.0 + stream / 15.0);
+    float balls = 20.0;
+    for (float i = 0.0; i < balls; i++){
+      float dist = length(uv);
+      uv.y += 0.3 * sin(uv.y / 27.3 + stream / 2.0) * sin(uv.x / 1.0 - stream / 1.0);
+      uv.x -= 1.0 * sin(uv.x / 10.1 - stream / 5.0) * sin(uv.x / 1.1 + stream / 1.0);
+      float t = i * PI / balls * 6.0;
+      float mult = dist * 287.0 * sin(stream + uv.x);
+      vec2 p = vec2(-11.0 * tan(t * mult), 1.0 * sin(t / mult));
+      vec3 c = cos(vec3(0,1,-1) * PI * 2.0 / 3.0 + PI * (stream / 10.0 + i / 5.0)) * 0.5 + 0.5;
+      col += vec4(pow(vol, 0.8) * mix(1.7, 2.5, mixT) / length(uv - p * 0.9) * c, 1.0).xyz;
+    }
+    col = pow(col, vec3(mix(1.4, 1.8, mixT)));
+  } else if (mode < 7.5){
+    // Quantum Flux
+    float sides = 1.0 + uVariant * 3.0;
+    float zoom = mix(33.3, 47.4, mixT);
+    uv *= zoom;
+    float dist = length(uv);
+    uv *= k_rot(dist / 12.7 + stream / 20.0);
+    uv = vec2(k_kale_sides(uv, sides), length(uv));
+    float orbs = 20.0;
+    for (float i = 0.0; i < orbs; i++){
+      uv.x += 0.0 * sin(uv.y * 0.25 + stream * -1.0) + cos(uv.y / 2.04 - stream / 1.0);
+      uv.y -= 2.2 * cos(uv.x * 0.42 + stream * 0.0) - sin(uv.x / 16.3 - stream / 1.7);
+      float t = i * PI / orbs * 2.0;
+      float x = 8.08 * tan(t - stream / 11.0);
+      float y = 8.08 * sin(t + stream / 11.0);
+      vec3 c = cos(vec3(-2,0,-1) * PI * 2.0 / 3.0 + PI * (i / 7.0)) * 0.5 + 0.5;
+      col += k_orb(uv, vol * mix(1.4, 2.5, mixT), vec2(x,y), c, mix(1.2, 1.4, mixT)).xyz;
+    }
+    col = pow(col, vec3(mix(1.2, 1.4, mixT)));
+  } else {
+    // Nebula Drift / Stellar fallback
+    float sides = 1.0 + uVariant * 3.0;
+    float zoom = mix(47.4, 33.0, mixT);
+    uv *= zoom;
+    uv *= k_rot(stream / 40.0);
+    uv = vec2(k_kale_sides(uv, sides), length(uv));
+    float orbs = 20.0;
+    for (float i = 0.0; i < orbs; i++){
+      uv.x += 2.0 * sin(uv.y * 0.14 + stream * -0.5) + cos(uv.y / 3.2 - stream / 4.0);
+      uv.y -= 0.94 * cos(uv.x * 0.05 + stream * 0.5) - sin(uv.x / 2.08 - stream / 7.0);
+      float t = i * PI / orbs * 2.0;
+      float x = 10.2 * tan(t - stream / 4.0);
+      float y = 10.2 * sin(t + stream / 4.0);
+      vec3 c = cos(vec3(-2,0,-1) * PI * 2.0 / 3.0 + PI * (i / 7.0)) * 0.5 + 0.5;
+      col += k_orb(uv, pow(vol, 0.8) * mix(2.5, 3.5, mixT), vec2(x,y), c, mix(1.1, 1.4, mixT)).xyz;
+    }
+    col = pow(col, vec3(mix(1.1, 1.4, mixT)));
+  }
+
+  col = col * (1.0 + uTreble * 0.5 + uBeat * 2.0);
+  col = pow(col, vec3(1.0 + uBass * 0.5));
+  col = mix(col, vec3(0.05), 0.15);
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+    let material, mesh;
+    function buildMaterial() {
+      if (material) material.dispose();
+      material = new THREE.ShaderMaterial({
+        uniforms: THREE.UniformsUtils.clone(uniforms),
+        vertexShader,
+        fragmentShader,
+      });
+      if (mesh) scene.remove(mesh);
+      const geo = new THREE.PlaneGeometry(2, 2);
+      mesh = new THREE.Mesh(geo, material);
+      scene.add(mesh);
+    }
+    buildMaterial();
+
+    // ---------------- UI controls ----------------
+    const chipRow = document.getElementById('chip-row');
+    function renderChips() {
+      chipRow.innerHTML = '';
+      SKETCHES.forEach((s, i) => {
+        const c = document.createElement('button');
+        c.className = 'chip' + (i === currentIdx ? ' active' : '');
+        c.textContent = s.name;
+        c.title = `${s.name} (${s.id}) · variant ${variantIdx + 1}`;
+        c.addEventListener('click', () => { currentIdx = i; variantIdx = 0; selectSketch(); });
+        chipRow.appendChild(c);
+      });
+    }
+    function selectSketch() {
+      const s = SKETCHES[currentIdx];
+      material.uniforms.uMode.value = s.mode;
+      material.uniforms.uVariant.value = variantIdx / Math.max(SKETCHES.length - 1, 1);
+      material.uniforms.uTween.value = magicTween;
+      renderChips();
+    }
+    function nextSketch() { currentIdx = (currentIdx + 1) % SKETCHES.length; variantIdx = 0; magicTween = 0; selectSketch(); }
+    function prevSketch() { currentIdx = (currentIdx - 1 + SKETCHES.length) % SKETCHES.length; variantIdx = 0; magicTween = 0; selectSketch(); }
+    function randomSketch() { currentIdx = Math.floor(Math.random() * SKETCHES.length); variantIdx = Math.floor(Math.random() * 3); magicTween = 0; selectSketch(); }
+    function magic() { magicTween = 1; selectSketch(); setTimeout(() => { magicTween = 0; selectSketch(); }, 1200); }
+
+    // keyboard
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      switch (e.key.toLowerCase()) {
+        case 'arrowleft': e.preventDefault(); prevSketch(); break;
+        case 'arrowright': e.preventDefault(); nextSketch(); break;
+        case 'r': e.preventDefault(); randomSketch(); break;
+        case 'm': e.preventDefault(); magic(); break;
+        case 'f': e.preventDefault(); toggleFullscreen(); break;
+        case 'u': e.preventDefault(); document.body.classList.toggle('hide-ui'); break;
+      }
+    });
+
+    // meters
+    const fills = { volume: document.getElementById('fill-volume'), bass: document.getElementById('fill-bass'), treble: document.getElementById('fill-treble'), bpm: document.getElementById('fill-bpm') };
+    const vals = { volume: document.getElementById('val-volume'), bass: document.getElementById('val-bass'), treble: document.getElementById('val-treble'), bpm: document.getElementById('val-bpm') };
+    function updateMeters() {
+      const vol = clamp(state.volume * 40, 0, 100);
+      const bass = clamp((state.bass + 100) / 2, 0, 100);
+      const tre = clamp((state.treble + 100) / 2, 0, 100);
+      const b = clamp(state.bpm / 160, 0, 100);
+      fills.volume.style.width = vol + '%'; vals.volume.textContent = vol.toFixed(0) + '%';
+      fills.bass.style.width = bass + '%'; vals.bass.textContent = bass.toFixed(0) + '%';
+      fills.treble.style.width = tre + '%'; vals.treble.textContent = tre.toFixed(0) + '%';
+      fills.bpm.style.width = b + '%'; vals.bpm.textContent = Math.round(state.bpm);
+      material.uniforms.uVolume.value = state.volume;
+      material.uniforms.uBass.value = state.bass;
+      material.uniforms.uTreble.value = state.treble;
+      material.uniforms.uBpm.value = state.bpm;
+      material.uniforms.uBeat.value = state.beat;
+    }
+
+    // fullscreen
+    function toggleFullscreen() {
+      const el = wrap;
+      if (!document.fullscreenElement) { el.requestFullscreen().catch(() => { }); }
+      else if (document.exitFullscreen) { document.exitFullscreen(); }
+    }
+    document.getElementById('canvas-wrap').addEventListener('dblclick', toggleFullscreen);
+
+    // mouse
+    wrap.addEventListener('mousemove', (e) => {
+      const r = wrap.getBoundingClientRect();
+      material.uniforms.uMouse.value.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    });
+
+    // pipeline detail toggle
+    document.getElementById('pipe-tog').addEventListener('click', () => {
+      const d = document.getElementById('pipe-detail');
+      const open = d.classList.toggle('open');
+      document.getElementById('pipe-tog').textContent = open ? 'Hide pipeline detail ▴' : 'Show pipeline detail ▾';
+    });
+
+    // ---------------- Render loop ----------------
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      renderer.setSize(w, h, false);
+      renderer.setPixelRatio(dpr);
+      const ar = w / h;
+      camera.left = -ar; camera.right = ar; camera.top = 1; camera.bottom = -1;
+      camera.updateProjectionMatrix();
+      uniforms.uResolution.value.set(w * dpr, h * dpr);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    let last = performance.now();
+    function frame(now) {
+      const dt = (now - last) / 1000; last = now;
+      state.time += dt;
+      analyse();
+      updateMeters();
+      uniforms.uTime.value = state.time;
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    }
+
+    initAudio().then(() => { requestAnimationFrame(frame); });
+
+    // initial sketch
+    selectSketch();
+    renderChips();
+
+    // auto-update release list from GitHub API
+    const releaseList = document.getElementById('release-list');
+    const releaseNote = document.getElementById('release-note');
+
+    async function loadReleases() {
+      try {
+        const res = await fetch('https://api.github.com/repos/brgjr10/kaleidosync/releases', {
+          headers: { Accept: 'application/vnd.github+json' },
+        });
+        if (!res.ok) throw new Error('status ' + res.status);
+        const releases = await res.json();
+        releaseList.innerHTML = releases.slice(0, 8).map(r => {
+          const date = new Date(r.published_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+          return `<li><a href="${r.html_url}" target="_blank" rel="noopener">${r.tag_name || r.name}</a> <span>${r.name || ''} · ${date}</span></li>`;
+        }).join('');
+        releaseNote.textContent = releases.length ? `${releases.length} releases · latest: ${releases[0].tag_name || releases[0].name}` : 'No releases found.';
+      } catch (e) {
+        releaseList.innerHTML = `
+      <li><a href="https://github.com/brgjr10/kaleidosync/releases/latest" target="_blank" rel="noopener">Latest release</a> <span>Check releases page</span></li>
+      <li><a href="https://github.com/brgjr10/kaleidosync/releases" target="_blank" rel="noopener">All releases</a> <span>GitHub releases page</span></li>
+    `;
+        releaseNote.textContent = 'Could not load releases — opening releases page directly.';
+      }
+    }
+    loadReleases();
+  </script>
+</body>
+
+</html>
