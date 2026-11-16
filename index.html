@@ -112,15 +112,21 @@
     }
 
     .brand .mark {
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       border-radius: 8px;
-      background: linear-gradient(135deg, #00ff88, #7c3aed);
       display: grid;
       place-items: center;
-      font-weight: 900;
-      font-size: 12px;
-      color: #000
+      overflow: hidden;
+      background: #000;
+      border: 1px solid var(--border)
+    }
+
+    .brand .mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block
     }
 
     nav .menu {
@@ -749,7 +755,7 @@
 
   <header>
     <div class="nav-wrap">
-      <a href="#" class="brand" aria-label="Kaleidosync home"><span class="mark">K</span> Kaleidosync</a>
+      <a href="#" class="brand" aria-label="Kaleidosync home"><span class="mark"><img src="https://raw.githubusercontent.com/brgjr10/kaleidosync/main/logo.png" alt="Kaleidosync logo" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentElement.textContent='K';this.parentElement.style.background='linear-gradient(135deg,#00ff88,#7c3aed)'"></span> Kaleidosync</a>
       <nav>
         <div class="menu">
           <a href="#visuals" class="nav-active">Visuals</a>
@@ -1014,8 +1020,10 @@
     </div>
   </footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r168.0/three.min.js" crossorigin="anonymous"></script>
   <script type="module">
-    import * as THREE from 'https://esm.sh/three@0.168.0';
+    const THREE = window.THREE;
+    if (THREE) {
 
     // ---------------- Config / sketch catalog (real names) ----------------
     const SKETCHES = [
@@ -1297,7 +1305,19 @@ void main(){
     function buildMaterial() {
       if (material) material.dispose();
       material = new THREE.ShaderMaterial({
-        uniforms: THREE.UniformsUtils.clone(uniforms),
+        uniforms: {
+          uTime: { value: 0 },
+          uResolution: { value: new THREE.Vector2() },
+          uVolume: { value: 0 },
+          uBass: { value: 0 },
+          uTreble: { value: 0 },
+          uBpm: { value: 0 },
+          uBeat: { value: 0 },
+          uMode: { value: 0 },
+          uVariant: { value: 0 },
+          uTween: { value: 0 },
+          uMouse: { value: new THREE.Vector2(0, 0) },
+        },
         vertexShader,
         fragmentShader,
       });
@@ -1350,10 +1370,10 @@ void main(){
     const fills = { volume: document.getElementById('fill-volume'), bass: document.getElementById('fill-bass'), treble: document.getElementById('fill-treble'), bpm: document.getElementById('fill-bpm') };
     const vals = { volume: document.getElementById('val-volume'), bass: document.getElementById('val-bass'), treble: document.getElementById('val-treble'), bpm: document.getElementById('val-bpm') };
     function updateMeters() {
-      const vol = clamp(state.volume * 40, 0, 100);
-      const bass = clamp((state.bass + 100) / 2, 0, 100);
-      const tre = clamp((state.treble + 100) / 2, 0, 100);
-      const b = clamp(state.bpm / 160, 0, 100);
+      const vol = clamp(state.volume * 100, 0, 100);
+      const bass = clamp(state.bass * 100, 0, 100);
+      const tre = clamp(state.treble * 100, 0, 100);
+      const b = clamp(state.bpm / 2, 0, 100);
       fills.volume.style.width = vol + '%'; vals.volume.textContent = vol.toFixed(0) + '%';
       fills.bass.style.width = bass + '%'; vals.bass.textContent = bass.toFixed(0) + '%';
       fills.treble.style.width = tre + '%'; vals.treble.textContent = tre.toFixed(0) + '%';
@@ -1395,7 +1415,7 @@ void main(){
       const ar = w / h;
       camera.left = -ar; camera.right = ar; camera.top = 1; camera.bottom = -1;
       camera.updateProjectionMatrix();
-      uniforms.uResolution.value.set(w * dpr, h * dpr);
+      material.uniforms.uResolution.value.set(w * dpr, h * dpr);
     }
     window.addEventListener('resize', resize);
     resize();
@@ -1407,15 +1427,20 @@ void main(){
       state.time += dt;
       updateAudioValues(state.time);
       updateMeters();
-      uniforms.uTime.value = state.time;
+      material.uniforms.uTime.value = state.time;
       renderer.render(scene, camera);
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
 
     // initial sketch
-    selectSketch();
     renderChips();
+    selectSketch();
+
+    } else {
+      const wrap = document.getElementById('canvas-wrap');
+      if (wrap) wrap.innerHTML = '<div style="color:#ff3366;text-align:center;padding:40px;font-family:sans-serif">Visualizer unavailable (Three.js failed to load).</div>';
+    }
 
     // auto-update release list from GitHub API
     const releaseList = document.getElementById('release-list');
