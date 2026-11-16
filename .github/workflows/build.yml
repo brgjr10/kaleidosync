@@ -291,6 +291,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Bake release list into demo site
-        run: node kaleidosync-page/build-releases.js index.html
+        run: node .github/workflows/build-releases.js index.html
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
