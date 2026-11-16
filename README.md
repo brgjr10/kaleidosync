@@ -4,6 +4,8 @@ Standalone desktop app that renders 50 Kaleidosync visualizers synced to system 
 
 ---
 
+## [Demo Site — Preview 8/50 Scenes](https://brgjr10.github.io/kaleidosync/)
+
 ![Live Preview](preview3.gif)
 
 ## Screenshots
