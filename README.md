@@ -47,9 +47,9 @@ The app keeps Zach's 50 visualizer sketches and GLSL utility set, but every inte
 
 | Platform | Runner | Artifacts |
 |----------|--------|-----------|
-| Linux | `ubuntu-latest` | [AppImage (x86_64)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37), [`.deb` (x86_64)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37) |
-| Windows | `windows-latest` | [NSIS installer (`.exe`)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37), [Portable (`.zip`)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37) |
-| macOS | `macos-latest` | [DMG (universal)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37), [ZIP (universal)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37) |
+| Linux | `ubuntu-latest` | [AppImage (x86_64)](https://github.com/brgjr10/kaleidosync/releases), [`.deb` (x86_64)](https://github.com/brgjr10/kaleidosync/releases) |
+| Windows | `windows-latest` | [NSIS installer (`.exe`)](https://github.com/brgjr10/kaleidosync/releases), [Portable (`.zip`)](https://github.com/brgjr10/kaleidosync/releases) |
+| macOS | `macos-latest` | [DMG (universal)](https://github.com/brgjr10/kaleidosync/releases), [ZIP (universal)](https://github.com/brgjr10/kaleidosync/releases) |
 
 ### Auto-Release
 <details>
