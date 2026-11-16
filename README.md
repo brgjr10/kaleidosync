@@ -16,50 +16,6 @@ Standalone desktop app that renders 50 Kaleidosync visualizers synced to system 
 
 ---
 
-## Why a new repo
-<details>
-
-This project began as a near-total rewrite of [zachwinter's Kaleidosync](https://github.com/zachwinter/kaleidosync). The original codebase suffered from **unified module chaos** (CommonJS `require()` in an ES module world), **broken audio IPC** (analytics never forwarded to renderer), **catalog fetch failures** (relative `file://` paths resolving to the OS root), **deprecated Three.js shaders** (GLSL ES 1.0 / `uniform bool` mismatches), and **NaN-propagating audio filters** that made bass/treble/bpm all read zero. A [Docker port](https://github.com/brgjr10/kaleidosync-docker) attempted to address the Linux build but could not fix the fundamental runtime bugs — especially the per-frame filter state that went `NaN` on encountering even a single bad sample from `pw-record`, which then persisted as `NaN` forever because `NaN + anything = NaN`. This version replaces that filter path with NaN-sanitized sampling, fixes the MPRIS playback-gating logic so Spotify auto-starts capture when playing, and makes the entire audio→uniform→shader pipeline universal across Linux/macOS/Windows audio backends.
-
-The app keeps Zach's 50 visualizer sketches and GLSL utility set, but every integration layer — module system, audio capture, shader wiring, variant interpolation, IPC bridge, UI gating — has been rewritten from scratch. The name stays the same; only the repository changes.
-
----
-</details>
-
-## Issues Correlated with This Build
-<details>
-
-Every issue listed in `ISSUES.md` and `MIGRATION_NOTES.md` has been tracked and resolved. The following fixes are included in this release:
-
-| # | Issue | Fix |
-|---|-------|-----|
-| 1 | **Module System Unification** | `package.json` has `"type": "module"`; all source files use ESM imports/exports. No `require()`/`import` mismatch. |
-| 2 | **Audio Capture IPC Bridge** | `main.js` forwards `'audio:analytics-update'` to renderer via `webContents.send`; singleton `AudioCapture` instance; `onAnalyticsUpdate` registered before `startCapture` resolves. |
-| 3 | **Catalog Loading** | Sketch catalog loaded via main-process IPC (`'audio:enumerate-devices'`) not relative `fetch()` — eliminates `file://` root resolution bug. `init()` awaits catalog before `selectSketch(0)`. |
-| 4 | **Shader Compilation** | `wrapMainImage()` splits global scope from functions; `mainImage()` calls wrapped in `main()`. Boolean uniforms declared as `<name>` / `<name>Tween` / `<name>TweenProgress` compatible with GLSL ES 1.0. `k_swap` added to GLSL utils. Uniform name collision (`stream`/`iStream`) resolved. |
-| 5 | **Variant Interpolation** | `Tween`/`TweenProgress` uniforms fully interpolated by `buildVariantInterpolator`; bool interpolation smooth via tween progress; unknown keys default safe. |
-| 6 | **Renderer Issues** | `handleResize()` only on resize event; full-screen quad UVs corrected to [0,1]; `setSize(..., true)` enables drawing buffer on high DPR. |
-| 7 | **UI Race Conditions** | Variant change → `selectVariant()` → `applyCurrentSketch()` (awaited); prev/next buttons update after apply; `updateAudioUI()` writes to `renderer.uniforms` only (no double-overwrite). |
-| 8 | **Duplicate Files** | `src/` directory removed — all code lives under `app/` + `src/audio/` only. |
-| 9 | **HTML/Preload** | Duplicate `class` on `btn-audio-stop` removed; `app:get-version` / `app:quit` IPC handlers added; `onAnalyticsUpdate` cleanup stored. |
-| 10 | **Spawn Order** | All 9 phases executed sequentially: module system → audio core → catalog → shaders → sketch engine → UI integration → cleanup. |
-| 11 | **NaN Propagation in Bass/Treble/BPM** | Per-sample NaN sanitization (`isNaN(mono) ? 0 : mono`) before filter accumulation; filter state no longer goes permanent NaN on bad samples. Bass/treble/bpm now all produce valid non-zero values. |
-| 12 | **Spotify Auto-Start Capture** | `loadAudioSources()` now finds Spotify by name first, then falls back to any app source, then system monitor. MPRIS `playing` gating verified working via `gdbus` query. |
-| 13 | **MPRIS Playback Controls** | Previous/Play-Pause/Next swap source selector for playback controls; track title/artist displayed above volume/bass/treble meters; hidden-mode panel mirrors with auto-hide (3s), mouse-move show, hover pin. |
-| 14 | **MPRIS Metadata** | `queryMprisMetadata`, `queryMprisPosition`, `sendMprisCommand`, `parseMprisMetadata` added; metadata cleaned of leading/trailing quotes; scrolling marquee on overflow; hidden panel scrolling. |
-| 15 | **BPM Detection** | Fixed two root causes: (a) `freqBuffer` unbounded → replaced with real-time per-frame IIR low-pass (80Hz) / high-pass (2000Hz) filtering; (b) `lastBeatTimeMs` initialized to 0 → fixed by initializing on first detected beat with explicit `minBeatInterval` check. |
-| 16 | **Bass Filter Frequency** | Changed from 150Hz to 80Hz low-pass (`Math.exp(-2 * Math.PI * 80 / sampleRate)`). |
-| 17 | **cleanMetadataText** | Strips **both** leading and trailing quotes: `text.replace(/^['"]+/, '').replace(/['"]+$/, '').trim()`. |
-| 18 | **Bass/Treble Meters** | UI meter bars with labels; stream meter hidden (`display:none`); volume shown. |
-| 19 | **Dropdown Dark Theme** | Consolidated option styling: `.sketch-selector option, .variant-panel select option, .audio-panel select option { background: #111; color: #fff; }`. |
-| 20 | **App Icon** | `app/assets/icon.png` updated from `logo.png`; `package.json` build config includes `"icon": "app/assets/icon.png"` for linux/win/mac targets. |
-| 21 | **Sketch Naming** | All 50 sketches in `assets/sketches.json` have `name` field (e.g. "Orb Kaleidoscope", "Hue Orbit", "Digital Abyss", "Extreme Warp", "Warp Grid"). |
-| 22 | **UI Display Names** | Renderer uses `${s.name || s.id}` in sketch dropdown. |
-| 23 | **App Build** | Full `npm run build` produces `dist/Kaleidosync-2.0.0.AppImage` (~109MB) and `dist/kaleidosync-desktop_2.0.0_amd64.deb` (~75MB). Lint and `tsc --noEmit` pass clean. |
-
----
-</details>
-
 ## Features
 
 - **50+ Visualizers** — Full sketch catalog from the Kaleidosync reference implementation, each with per-sketch variants and "magic" tweening.
@@ -75,7 +31,51 @@ Every issue listed in `ISSUES.md` and `MIGRATION_NOTES.md` has been tracked and 
 
 ---
 
+## Why a new repo
+<details>
+
+This project began as a near-total rewrite of [zachwinter's Kaleidosync](https://github.com/zachwinter/kaleidosync). The original codebase suffered from **unified module chaos** (CommonJS `require()` in an ES module world), **broken audio IPC** (analytics never forwarded to renderer), **catalog fetch failures** (relative `file://` paths resolving to the OS root), **deprecated Three.js shaders** (GLSL ES 1.0 / `uniform bool` mismatches), and **NaN-propagating audio filters** that made bass/treble/bpm all read zero. A [Docker port](https://github.com/brgjr10/kaleidosync-docker) attempted to address the Linux build but could not fix the fundamental runtime bugs — especially the per-frame filter state that went `NaN` on encountering even a single bad sample from `pw-record`, which then persisted as `NaN` forever because `NaN + anything = NaN`. This version replaces that filter path with NaN-sanitized sampling, fixes the MPRIS playback-gating logic so Spotify auto-starts capture when playing, and makes the entire audio→uniform→shader pipeline universal across Linux/macOS/Windows audio backends.
+
+The app keeps Zach's 50 visualizer sketches and GLSL utility set, but every integration layer — module system, audio capture, shader wiring, variant interpolation, IPC bridge, UI gating — has been rewritten from scratch. The name stays the same; only the repository changes.
+</details>
+
+---
+
 ## Quick Start
+
+### Build Matrix
+
+| Platform | Runner | Artifacts |
+|----------|--------|-----------|
+| Linux | `ubuntu-latest` | [AppImage (x86_64)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37), [`.deb` (x86_64)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37) |
+| Windows | `windows-latest` | [NSIS installer (`.exe`)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37), [Portable (`.zip`)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37) |
+| macOS | `macos-latest` | [DMG (universal)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37), [ZIP (universal)](https://github.com/brgjr10/kaleidosync/releases/tag/v2.0.0-9f22d37) |
+
+### Auto-Release
+<details>
+
+This repo ships a GitHub Actions workflow (`.github/workflows/build.yml`) that builds all three platforms and **auto-publishes a release on every commit** to `main` (or `master`).
+
+Every push to `main`/`master` triggers:
+
+1. **Build** — All three platform jobs compile and upload artifacts (Linux is required; Windows/macOS are `continue-on-error` since code-signing is unavailable).
+2. **Lint & Typecheck** — `npm run lint` and `npm run typecheck` run on Linux before build (must pass).
+3. **Catalog Verification** — Confirms exactly 50 sketches / 92 variants are present in `assets/sketches.json`.
+4. **Tag & Release** — A new GitHub Release is created with tag `v2.0.0-<short-sha>` and all built executables attached as download assets.
+
+Because it runs on every commit, you get a versioned, downloadable release for **each change** — no manual tagging required.
+
+### Manual Triggers
+
+- Push/PR to `main` or `master` → auto-release.
+- `workflow_dispatch` → manual rebuild without release.
+- Published release → rebuild from tag.
+</details>
+
+---
+
+## Dev Quick Start
+<details>
 
 ### Prerequisites
 
@@ -100,6 +100,8 @@ npm run build      # Builds AppImage/deb (Linux), NSIS/portable (Windows), DMG/z
 ```
 
 Outputs in `dist/`.
+
+</details>
 
 ---
 
@@ -149,42 +151,43 @@ kaleidosync-desktop/
 ├── package.json
 └── README.md
 ```
-
----
 </details>
 
-## Continuous Integration & Releases
+---
+
+## Issues Correlated with This Build
 <details>
 
-This repo ships a GitHub Actions workflow (`.github/workflows/build.yml`) that builds all three platforms and **auto-publishes a release on every commit** to `main` (or `master`).
+Every issue listed in `ISSUES.md` and `MIGRATION_NOTES.md` has been tracked and resolved. The following fixes are included in this release:
 
-### Build Matrix
-
-| Platform | Runner | Artifacts |
-|----------|--------|-----------|
-| Linux | `ubuntu-latest` | AppImage (x86_64), `.deb` (x86_64) |
-| Windows | `windows-latest` | NSIS installer (`.exe`), Portable (`.zip`) |
-| macOS | `macos-latest` | DMG (universal), ZIP (universal) |
-
-### Auto-Release
-
-Every push to `main`/`master` triggers:
-
-1. **Build** — All three platform jobs compile and upload artifacts (Linux is required; Windows/macOS are `continue-on-error` since code-signing is unavailable).
-2. **Lint & Typecheck** — `npm run lint` and `npm run typecheck` run on Linux before build (must pass).
-3. **Catalog Verification** — Confirms exactly 50 sketches / 92 variants are present in `assets/sketches.json`.
-4. **Tag & Release** — A new GitHub Release is created with tag `v2.0.0-<short-sha>` and all built executables attached as download assets.
-
-Because it runs on every commit, you get a versioned, downloadable release for **each change** — no manual tagging required.
-
-### Manual Triggers
-
-- Push/PR to `main` or `master` → auto-release.
-- `workflow_dispatch` → manual rebuild without release.
-- Published release → rebuild from tag.
+| # | Issue | Fix |
+|---|-------|-----|
+| 1 | **Module System Unification** | `package.json` has `"type": "module"`; all source files use ESM imports/exports. No `require()`/`import` mismatch. |
+| 2 | **Audio Capture IPC Bridge** | `main.js` forwards `'audio:analytics-update'` to renderer via `webContents.send`; singleton `AudioCapture` instance; `onAnalyticsUpdate` registered before `startCapture` resolves. |
+| 3 | **Catalog Loading** | Sketch catalog loaded via main-process IPC (`'audio:enumerate-devices'`) not relative `fetch()` — eliminates `file://` root resolution bug. `init()` awaits catalog before `selectSketch(0)`. |
+| 4 | **Shader Compilation** | `wrapMainImage()` splits global scope from functions; `mainImage()` calls wrapped in `main()`. Boolean uniforms declared as `<name>` / `<name>Tween` / `<name>TweenProgress` compatible with GLSL ES 1.0. `k_swap` added to GLSL utils. Uniform name collision (`stream`/`iStream`) resolved. |
+| 5 | **Variant Interpolation** | `Tween`/`TweenProgress` uniforms fully interpolated by `buildVariantInterpolator`; bool interpolation smooth via tween progress; unknown keys default safe. |
+| 6 | **Renderer Issues** | `handleResize()` only on resize event; full-screen quad UVs corrected to [0,1]; `setSize(..., true)` enables drawing buffer on high DPR. |
+| 7 | **UI Race Conditions** | Variant change → `selectVariant()` → `applyCurrentSketch()` (awaited); prev/next buttons update after apply; `updateAudioUI()` writes to `renderer.uniforms` only (no double-overwrite). |
+| 8 | **Duplicate Files** | `src/` directory removed — all code lives under `app/` + `src/audio/` only. |
+| 9 | **HTML/Preload** | Duplicate `class` on `btn-audio-stop` removed; `app:get-version` / `app:quit` IPC handlers added; `onAnalyticsUpdate` cleanup stored. |
+| 10 | **Spawn Order** | All 9 phases executed sequentially: module system → audio core → catalog → shaders → sketch engine → UI integration → cleanup. |
+| 11 | **NaN Propagation in Bass/Treble/BPM** | Per-sample NaN sanitization (`isNaN(mono) ? 0 : mono`) before filter accumulation; filter state no longer goes permanent NaN on bad samples. Bass/treble/bpm now all produce valid non-zero values. |
+| 12 | **Spotify Auto-Start Capture** | `loadAudioSources()` now finds Spotify by name first, then falls back to any app source, then system monitor. MPRIS `playing` gating verified working via `gdbus` query. |
+| 13 | **MPRIS Playback Controls** | Previous/Play-Pause/Next swap source selector for playback controls; track title/artist displayed above volume/bass/treble meters; hidden-mode panel mirrors with auto-hide (3s), mouse-move show, hover pin. |
+| 14 | **MPRIS Metadata** | `queryMprisMetadata`, `queryMprisPosition`, `sendMprisCommand`, `parseMprisMetadata` added; metadata cleaned of leading/trailing quotes; scrolling marquee on overflow; hidden panel scrolling. |
+| 15 | **BPM Detection** | Fixed two root causes: (a) `freqBuffer` unbounded → replaced with real-time per-frame IIR low-pass (80Hz) / high-pass (2000Hz) filtering; (b) `lastBeatTimeMs` initialized to 0 → fixed by initializing on first detected beat with explicit `minBeatInterval` check. |
+| 16 | **Bass Filter Frequency** | Changed from 150Hz to 80Hz low-pass (`Math.exp(-2 * Math.PI * 80 / sampleRate)`). |
+| 17 | **cleanMetadataText** | Strips **both** leading and trailing quotes: `text.replace(/^['"]+/, '').replace(/['"]+$/, '').trim()`. |
+| 18 | **Bass/Treble Meters** | UI meter bars with labels; stream meter hidden (`display:none`); volume shown. |
+| 19 | **Dropdown Dark Theme** | Consolidated option styling: `.sketch-selector option, .variant-panel select option, .audio-panel select option { background: #111; color: #fff; }`. |
+| 20 | **App Icon** | `app/assets/icon.png` updated from `logo.png`; `package.json` build config includes `"icon": "app/assets/icon.png"` for linux/win/mac targets. |
+| 21 | **Sketch Naming** | All 50 sketches in `assets/sketches.json` have `name` field (e.g. "Orb Kaleidoscope", "Hue Orbit", "Digital Abyss", "Extreme Warp", "Warp Grid"). |
+| 22 | **UI Display Names** | Renderer uses `${s.name || s.id}` in sketch dropdown. |
+| 23 | **App Build** | Full `npm run build` produces `dist/Kaleidosync-2.0.0.AppImage` (~109MB) and `dist/kaleidosync-desktop_2.0.0_amd64.deb` (~75MB). Lint and `tsc --noEmit` pass clean. |
+</details>
 
 ---
-</details>
 
 ## Reference Implementation
 <details>
@@ -195,9 +198,9 @@ Visualizer sketches and GLSL utils originated from:
 - `@wearesage/vue/src/constants/glsl-util.ts` — GLSL helpers
 
 This appports the full visualizer set and rewrites all sync logic, GUI, and audio pipeline.
+</details>
 
 ---
-</details>
 
 ## License
 
