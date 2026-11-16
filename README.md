@@ -7,7 +7,7 @@ Standalone desktop app that renders 50 Kaleidosync visualizers synced to system 
 ![Live Preview](preview3.gif)
 
 ## Screenshots
-
+  
 | Main UI | Hidden Mode |
 |---------|-------------|
 | <img src="preview2.png" alt="Main UI" width="400"> | <img src="preview1.png" alt="Hidden Mode" width="400"> |
@@ -15,14 +15,17 @@ Standalone desktop app that renders 50 Kaleidosync visualizers synced to system 
 ---
 
 ## Why a new repo
+<details>
 
 This project began as a near-total rewrite of [zachwinter's Kaleidosync](https://github.com/zachwinter/kaleidosync). The original codebase suffered from **unified module chaos** (CommonJS `require()` in an ES module world), **broken audio IPC** (analytics never forwarded to renderer), **catalog fetch failures** (relative `file://` paths resolving to the OS root), **deprecated Three.js shaders** (GLSL ES 1.0 / `uniform bool` mismatches), and **NaN-propagating audio filters** that made bass/treble/bpm all read zero. A [Docker port](https://github.com/brgjr10/kaleidosync-docker) attempted to address the Linux build but could not fix the fundamental runtime bugs — especially the per-frame filter state that went `NaN` on encountering even a single bad sample from `pw-record`, which then persisted as `NaN` forever because `NaN + anything = NaN`. This version replaces that filter path with NaN-sanitized sampling, fixes the MPRIS playback-gating logic so Spotify auto-starts capture when playing, and makes the entire audio→uniform→shader pipeline universal across Linux/macOS/Windows audio backends.
 
 The app keeps Zach's 50 visualizer sketches and GLSL utility set, but every integration layer — module system, audio capture, shader wiring, variant interpolation, IPC bridge, UI gating — has been rewritten from scratch. The name stays the same; only the repository changes.
 
 ---
+</details>
 
 ## Issues Correlated with This Build
+<details>
 
 Every issue listed in `ISSUES.md` and `MIGRATION_NOTES.md` has been tracked and resolved. The following fixes are included in this release:
 
@@ -53,6 +56,7 @@ Every issue listed in `ISSUES.md` and `MIGRATION_NOTES.md` has been tracked and 
 | 23 | **App Build** | Full `npm run build` produces `dist/Kaleidosync-2.0.0.AppImage` (~109MB) and `dist/kaleidosync-desktop_2.0.0_amd64.deb` (~75MB). Lint and `tsc --noEmit` pass clean. |
 
 ---
+</details>
 
 ## Features
 
@@ -122,6 +126,7 @@ Outputs in `dist/`.
 ---
 
 ## Architecture
+<details>
 
 ```
 kaleidosync-desktop/
@@ -144,8 +149,10 @@ kaleidosync-desktop/
 ```
 
 ---
+</details>
 
 ## Continuous Integration & Releases
+<details>
 
 This repo ships a GitHub Actions workflow (`.github/workflows/build.yml`) that builds all three platforms and **auto-publishes a release on every commit** to `main` (or `master`).
 
@@ -175,8 +182,10 @@ Because it runs on every commit, you get a versioned, downloadable release for *
 - Published release → rebuild from tag.
 
 ---
+</details>
 
 ## Reference Implementation
+<details>
 
 Visualizer sketches and GLSL utils originated from:
 - `@wearesage/vue/src/stores/sketches.ts` — 50 sketches with variants
@@ -186,6 +195,7 @@ Visualizer sketches and GLSL utils originated from:
 This appports the full visualizer set and rewrites all sync logic, GUI, and audio pipeline.
 
 ---
+</details>
 
 ## License
 
