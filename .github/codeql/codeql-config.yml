@@ -1,0 +1,13 @@
+name: "Kaleidosync CodeQL Config"
+
+# Disable default queries and use only security-extended
+queries:
+  - uses: security-extended
+
+paths-ignore:
+  - app/renderer.bundle.js
+  - app/renderer.bundle.js.map
+  - app/preload.bundle.cjs
+  - app/preload.bundle.cjs.map
+  - index.html
+  - extractor.js
