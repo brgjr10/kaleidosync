@@ -44,6 +44,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Bundle renderer and preload
+        run: npm run bundle
+
       - name: Verify sketch catalog
         run: |
           node -e "
@@ -121,6 +124,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Bundle renderer and preload
+        run: npm run bundle
 
       - name: Verify sketch catalog
         run: |

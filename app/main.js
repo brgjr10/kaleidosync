@@ -78,28 +78,25 @@ function sendAudioError(err) {
 
 async function initializeAudioCapture() {
   if (audioCapture) return;
-  // Construct and initialize off to the side: if init() throws, the failed
-  // instance is never assigned, so a later call can retry instead of
-  // short-circuiting on a permanently poisoned singleton.
-  const capture = new AudioCapture();
-  await capture.init();
-  audioCapture = capture;
+  try {
+    const capture = new AudioCapture();
+    await capture.init();
+    audioCapture = capture;
 
-  // Forward analytics events from AudioCapture to renderer
-  audioCapture.on('analytics', (data) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('audio:analytics-update', data);
-    }
-  });
+    audioCapture.on('error', (err) => {
+      console.error('[AudioCapture] error:', err.message);
+      sendAudioError(err);
+    });
 
-  // AudioCapture extends EventEmitter and emits 'error' when the capture
-  // subprocess dies. An 'error' event with no listener is thrown as an
-  // uncaught exception in Node, which would take down the main process.
-  // Always register a handler right after a successful init.
-  audioCapture.on('error', (err) => {
-    console.error('[Main] Audio capture error:', err && err.message ? err.message : err);
-    sendAudioError(err);
-  });
+    audioCapture.on('analytics', (data) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('audio:analytics-update', data);
+      }
+    });
+  } catch (err) {
+    audioCapture = null;
+    console.error('[Main] Audio capture initialization failed:', err.message);
+  }
 }
 
 app.whenReady().then(async () => {

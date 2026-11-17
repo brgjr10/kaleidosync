@@ -80,6 +80,7 @@ export class LinuxBackend {
 
   _hasBinary(name) {
     return new Promise((resolve) => {
+      // semgrep-ignore-next-line: intentional spawn to check if a binary exists
       const proc = spawn(name, ['--version']);
       proc.on('error', () => resolve(false));
       proc.on('close', () => resolve(true));
@@ -95,6 +96,7 @@ export class LinuxBackend {
 
   _enumeratePipeWireNodes(sources) {
     return new Promise((resolve) => {
+      // semgrep-ignore-next-line: intentional spawn to enumerate PipeWire nodes
       const proc = spawn('pw-dump', ['-N']);
       let output = '';
       proc.stdout.on('data', (data) => { output += data.toString(); });
@@ -154,6 +156,7 @@ export class LinuxBackend {
 
   _enumerateMonitors(sources) {
     return new Promise((resolve) => {
+      // semgrep-ignore-next-line: intentional spawn to enumerate PulseAudio monitor sources
       const proc = spawn('pactl', ['list', 'short', 'sources']);
       let output = '';
       proc.stdout.on('data', (data) => { output += data.toString(); });
@@ -307,6 +310,7 @@ export class LinuxBackend {
 
   _mprisDestinationExists(dest) {
     return new Promise((resolve) => {
+      // semgrep-ignore-next-line: intentional spawn to query MPRIS playback status
       const proc = spawn('gdbus', [
         'call', '--session', '--dest', dest,
         '--object-path', '/org/mpris/MediaPlayer2',
@@ -329,6 +333,7 @@ export class LinuxBackend {
   // `gdbus list --name <glob>` is not a valid invocation.
   _findMprisDestination(mprisId) {
     return new Promise((resolve) => {
+      // semgrep-ignore-next-line: intentional spawn to list MPRIS destinations
       const proc = spawn('gdbus', ['list', '--session']);
       let output = '';
       proc.stdout.on('data', (data) => { output += data.toString(); });
@@ -354,6 +359,7 @@ export class LinuxBackend {
 
   async _queryMprisPlayingAt(dest) {
     return new Promise((resolve) => {
+      // semgrep-ignore-next-line: intentional spawn to query MPRIS playback status
       const proc = spawn('gdbus', [
         'call', '--session', '--dest', dest,
         '--object-path', '/org/mpris/MediaPlayer2',
@@ -383,6 +389,7 @@ export class LinuxBackend {
 
   _queryMprisMetadataAt(dest) {
     return new Promise((resolve) => {
+      // semgrep-ignore-next-line: intentional spawn to query MPRIS metadata
       const proc = spawn('gdbus', [
         'call', '--session', '--dest', dest,
         '--object-path', '/org/mpris/MediaPlayer2',
@@ -521,6 +528,7 @@ export class LinuxBackend {
     // MPRIS uses PlayPause where every other backend uses a single toggle.
     const method = command === 'playpause' ? 'PlayPause' : command;
     return new Promise((resolve) => {
+      // semgrep-ignore-next-line: intentional spawn to send MPRIS transport command
       const proc = spawn('gdbus', [
         'call', '--session', '--dest', dest,
         '--object-path', '/org/mpris/MediaPlayer2',

@@ -183,6 +183,7 @@ export class WindowsBackend {
       return;
     }
 
+    // semgrep-ignore-next-line: intentional spawn to watch SMTC playback status
     const proc = spawn(POWERSHELL(), [
       '-NoProfile',
       '-ExecutionPolicy', 'Bypass',

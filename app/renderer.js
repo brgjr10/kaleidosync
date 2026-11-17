@@ -345,10 +345,6 @@ function cleanMetadataText(text) {
   return cleaned;
 }
 
-// Scroll overflowing text by animating an inner wrapper. The wrapper carries
-// the text and is the only child, so the element the caller passed in keeps
-// its id; cloning the element itself duplicated that id in the DOM on every
-// metadata tick.
 function marquee(el) {
   let inner = el.firstElementChild;
   if (!inner || inner.getAttribute('data-marquee-inner') !== 'true') {
@@ -441,7 +437,6 @@ function updateAudioUI(data) {
   const bass = Math.round((data.bass || 0) * 100);
   const treble = Math.round((data.treble || 0) * 100);
   const bpm = Math.round(data.bpm || 0);
-
   currentBPM = bpm;
 
   meterVolume.style.width = `${Math.min(100, volume)}%`;
@@ -471,7 +466,6 @@ function updateAudioUI(data) {
 
 function animate(now = performance.now()) {
   requestAnimationFrame(animate);
-
   // Update tweening
   if (sketchEngine) {
     const tweenUniforms = sketchEngine.updateTween(now);
@@ -661,9 +655,7 @@ function setupEventListeners() {
   // Keyboard shortcuts (plain navigation). Ctrl/Cmd is reserved for the MPRIS
   // transport handler above, so ignore modified keystrokes here.
   document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-
     switch (e.key) {
       case 'ArrowLeft':
         sketchEngine.selectPreviousSketch();
