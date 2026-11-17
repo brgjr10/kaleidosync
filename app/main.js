@@ -166,14 +166,23 @@ ipcMain.handle('audio:get-metadata', async () => {
     return { status: 'idle', metadata: null, playing: false };
   }
   const metadata = await audioCapture.getMetadata();
-  const playing = metadata ? metadata.status === 'playing' : audioCapture.playing;
+  // Normalize status to lowercase so backends that return 'Playing' (SMTC)
+  // and 'playing' (MPRIS) both match. Fall back to audioCapture.playing when
+  // the backend exposes no status field (Linux MPRIS Metadata query omits
+  // PlaybackStatus), so the play/pause icon still reflects reality.
+  const rawStatus = metadata ? metadata.status : null;
+  const playing = rawStatus
+    ? String(rawStatus).toLowerCase() === 'playing'
+    : audioCapture.playing;
   return {
-    status: playing ? 'playing' : metadata?.status || 'paused',
+    status: playing ? 'playing' : (rawStatus ? String(rawStatus).toLowerCase() : 'paused'),
     metadata,
     playing,
     // The renderer treats a non-null mprisId as "this source exposes media
-    // controls". Keep the field name for compatibility; it is the backend id.
-    mprisId: metadata ? audioCapture.backend.id : null,
+    // controls". Base it on backend capability, not on whether metadata was
+    // available this tick, so the playback panel stays visible while a source
+    // is starting up.
+    mprisId: audioCapture.backend.supportsMetadata ? audioCapture.backend.id : null,
     backend: audioCapture.backend.id
   };
 });

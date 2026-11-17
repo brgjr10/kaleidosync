@@ -352,7 +352,7 @@ function cleanMetadataText(text) {
     }
 
   // Play/pause button state
-  const isPlaying = playing && status === 'playing';
+  const isPlaying = playing && String(status || '').toLowerCase() === 'playing';
   btnMprisPlay.textContent = isPlaying ? '⏸' : '▶';
   btnMprisPlay.title = isPlaying ? 'Pause (Ctrl+Space)' : 'Play (Ctrl+Space)';
   if (btnHiddenMprisPlay) btnHiddenMprisPlay.textContent = isPlaying ? '⏸' : '▶';
