@@ -10,7 +10,7 @@
     "dev": "electron .",
     "build": "electron-builder",
     "prebuild": "npm run bundle",
-    "bundle": "esbuild app/renderer.js --bundle --outfile=app/renderer.bundle.js --format=esm --platform=browser && esbuild app/preload.js --bundle --outfile=app/preload.bundle.cjs --format=cjs --platform=node",
+    "bundle": "esbuild app/renderer.js --bundle --outfile=app/renderer.bundle.js --format=esm --platform=browser && esbuild app/preload.js --bundle --outfile=app/preload.bundle.cjs --format=cjs --platform=node --external:electron",
     "build:native": "bash native/windows/build.sh",
     "build:bundles": "node build-renderer.js && node build-preload.js",
     "extract": "node extractor.js",
@@ -46,6 +46,12 @@
     ],
     "asarUnpack": [
       "native/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "app/preload.bundle.cjs",
+        "to": "preload.bundle.cjs"
+      }
     ],
     "linux": {
       "target": [

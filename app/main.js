@@ -22,6 +22,10 @@ function createWindow() {
   
   console.log('[Main] Creating window...', { width, height });
   
+  const preloadPath = app.isPackaged
+    ? join(process.resourcesPath, 'preload.bundle.cjs')
+    : join(__dirname, 'preload.bundle.cjs');
+  
   mainWindow = new BrowserWindow({
     width: Math.min(1600, width),
     height: Math.min(900, height),
@@ -29,7 +33,7 @@ function createWindow() {
     minHeight: 600,
     title: 'Kaleidosync',
     webPreferences: {
-      preload: join(__dirname, 'preload.bundle.cjs'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false

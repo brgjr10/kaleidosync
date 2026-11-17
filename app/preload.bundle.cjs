@@ -29,4 +29,3 @@ import_electron.contextBridge.exposeInMainWorld("kaleidosync", {
     getCatalog: () => import_electron.ipcRenderer.invoke("sketches:get-catalog")
   }
 });
-//# sourceMappingURL=preload.bundle.cjs.map
