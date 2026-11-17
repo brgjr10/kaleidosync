@@ -71,16 +71,21 @@ async function init() {
   await sketchEngine.loadCatalog();
   console.log('[Kaleidosync] Sketch engine loaded, catalog:', sketchEngine.getCatalog()?.count);
 
-  // Initialize renderer
-  renderer = new Renderer(canvas);
-  renderer.setGLSLUtils(KaleidoGLSL.all);
-  console.log('[Kaleidosync] Renderer initialized');
-
-  // Load first sketch
+  // Load first sketch BEFORE initializing renderer (so dropdown is populated even if WebGL fails)
   sketchEngine.selectSketch(0);
   updateSketchUI();
-  applyCurrentSketch();
-  console.log('[Kaleidosync] First sketch applied');
+  console.log('[Kaleidosync] First sketch selected, UI updated');
+
+  // Initialize renderer
+  try {
+    renderer = new Renderer(canvas);
+    renderer.setGLSLUtils(KaleidoGLSL.all);
+    applyCurrentSketch();
+    console.log('[Kaleidosync] Renderer initialized');
+  } catch (err) {
+    console.error('[Kaleidosync] Renderer initialization failed:', err);
+    // Continue without renderer - UI is still functional
+  }
 
   // Load audio sources
   await loadAudioSources();
