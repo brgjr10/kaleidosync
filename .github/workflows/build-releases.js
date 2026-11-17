@@ -26,7 +26,18 @@ function sanitizeHtml(str) {
     .replace(/(?:java|vb)script:/gi, '')
     .replace(/data:/gi, '')
     .replace(/on\w+\s*=/gi, '')
+    .replace(/on\w+/gi, '')
     .slice(0, 500);
+}
+
+/**
+ * Sanitize for safe HTML attribute context (href, etc.)
+ * More aggressive sanitization for values going into HTML attributes
+ */
+function sanitizeAttribute(str) {
+  if (typeof str !== 'string') return '';
+  return sanitizeHtml(str)
+    .replace(/[^a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]/g, '');
 }
 
 /**
@@ -53,13 +64,17 @@ function fmtDate(iso) {
 function buildList(releases) {
   return releases.slice(0, LIMIT).map(r => {
     const date = fmtDate(r.published_at);
-    return `<li><a href="${r.html_url}" target="_blank" rel="noopener">${r.tag_name || r.name}</a> <span>${r.name || ''} · ${date}</span></li>`;
+    const safeUrl = sanitizeAttribute(r.html_url);
+    const safeTag = sanitizeHtml(r.tag_name || r.name);
+    const safeName = sanitizeHtml(r.name || '');
+    return `<li><a href="${safeUrl}" target="_blank" rel="noopener">${safeTag}</a> <span>${safeName} · ${date}</span></li>`;
   }).join('');
 }
 
 function buildNote(releases) {
   if (!releases.length) return 'No releases found.';
-  return `${releases.length} releases · latest: ${releases[0].tag_name || releases[0].name}`;
+  const safeTag = sanitizeHtml(releases[0].tag_name || releases[0].name);
+  return `${releases.length} releases · latest: ${safeTag}`;
 }
 
 async function main() {
