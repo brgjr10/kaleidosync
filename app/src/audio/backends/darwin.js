@@ -70,6 +70,7 @@ export class DarwinBackend {
               '-framework', 'CoreMedia',
               '-framework', 'CoreGraphics',
               '-framework', 'AppKit',
+              '-framework', 'AVFAudio',
               '-o', outPath,
               swiftSource
             ]

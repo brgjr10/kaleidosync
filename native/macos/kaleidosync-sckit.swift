@@ -21,11 +21,13 @@
 // Build (on macOS):
 //   swiftc -O -target arm64-apple-macos13 \
 //     -framework ScreenCaptureKit -framework CoreMedia -framework CoreGraphics \
-//     -framework AppKit -o kaleidosync-sckit kaleidosync-sckit.swift
+//     -framework AppKit -framework AVFAudio \
+//     -o kaleidosync-sckit kaleidosync-sckit.swift
 //
 // The Electron app needs Screen Recording permission; a helper spawned by the
 // app inherits the responsible process's TCC decision.
 
+import AVFAudio
 import AppKit
 import CoreGraphics
 import CoreMedia
@@ -49,6 +51,10 @@ private func writeSamples(_ samples: [Float32]) {
     }
 }
 
+private func log(_ message: String) {
+    FileHandle.standardError.write(Data(("[kaleidosync-sckit] " + message + "\n").utf8))
+}
+
 private func jsonString(_ value: String) -> String {
     var out = "\""
     for scalar in value.unicodeScalars {
@@ -70,31 +76,38 @@ private func jsonString(_ value: String) -> String {
     return out
 }
 
-// Convert one SCStream audio sample buffer to interleaved float32. SCKit
-// normally delivers 32-bit float, non-interleaved planar audio; interleaved
-// float and signed 16-bit are handled too so a format change cannot silently
-// mute the app.
+// Convert one SCStream audio sample buffer to interleaved float32.
+//
+// ScreenCaptureKit normally delivers 32-bit float, non-interleaved planar
+// audio. The stream layout is read through AVAudioFormat(cmFormatDescription:)
+// rather than CMAudioFormatDescriptionGetStreamLayout, which is not exposed to
+// Swift in current SDKs. Interleaved float and signed 16-bit are handled too so
+// a format change cannot silently mute the app.
 private func writeSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
     guard sampleBuffer.isValid else { return }
     let frameCount = Int(CMSampleBufferGetNumSamples(sampleBuffer))
     guard frameCount > 0 else { return }
+
     guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer),
-          let streamLayout = CMAudioFormatDescriptionGetStreamLayout(
-              formatDescription, size: nil) else { return }
+          let format = AVAudioFormat(cmFormatDescription: formatDescription) else { return }
 
-    let asbd = streamLayout.pointee
-    let channels = Int(asbd.mChannelsPerFrame)
+    let channels = Int(format.channelCount)
     guard channels > 0 else { return }
-    guard let dataBuffer = CMSampleBufferGetDataBuffer(sampleBuffer),
-          let base = CFDataGetBytePtr(dataBuffer) else { return }
 
-    let byteCount = CFDataGetLength(dataBuffer)
+    guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return }
+    let byteCount = CMBlockBufferGetDataLength(blockBuffer)
     guard byteCount > 0 else { return }
-    let raw = Data(bytes: base, count: byteCount)
 
-    let isFloat = (asbd.mFormatFlags & kAudioFormatFlagIsFloat) != 0
-    let isNonInterleaved = (asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0
-    let isSignedInt = (asbd.mFormatFlags & kAudioFormatFlagIsSignedInteger) != 0
+    var dataPointer: UnsafeMutablePointer<Int8>?
+    let status = CMBlockBufferGetDataPointer(blockBuffer,
+                                             atOffset: 0,
+                                             length: byteCount,
+                                             outDataPointer: &dataPointer)
+    guard status == noErr, let dataPointer = dataPointer else { return }
+    let raw = Data(bytes: UnsafeRawPointer(dataPointer), count: byteCount)
+
+    let isFloat = format.commonFormat == .pcmFormatFloat32
+    let isNonInterleaved = !format.isInterleaved
 
     if isFloat && isNonInterleaved {
         let channelBytes = frameCount * 4
@@ -122,7 +135,24 @@ private func writeSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
         return
     }
 
-    if isSignedInt && asbd.mBitsPerSample == 16 {
+    if format.commonFormat == .pcmFormatInt16 && isNonInterleaved {
+        let sampleCount = frameCount * channels
+        guard byteCount >= sampleCount * 2 else { return }
+        var converted = [Float32](repeating: 0, count: sampleCount)
+        raw.withUnsafeBytes { src in
+            let source = src.baseAddress!.assumingMemoryBound(to: Int16.self)
+            for frame in 0..<frameCount {
+                for channel in 0..<channels {
+                    converted[frame * channels + channel] =
+                        Float32(source[channel * frameCount + frame]) / 32768.0
+                }
+            }
+        }
+        writeSamples(converted)
+        return
+    }
+
+    if format.commonFormat == .pcmFormatInt16 {
         let sampleCount = frameCount * channels
         guard byteCount >= sampleCount * 2 else { return }
         var converted = [Float32](repeating: 0, count: sampleCount)
@@ -136,15 +166,15 @@ private func writeSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
         return
     }
 
-    FileHandle.standardError.write(
-        Data("[kaleidosync-sckit] unsupported audio format: flags=0x"
-             + String(asbd.mFormatFlags, radix: 16)
-             + " bits=\(asbd.mBitsPerSample)\n".utf8))
+    log("unsupported audio format: \(format.commonFormat.rawValue)")
 }
 
 // MARK: - Screen capture
 
 private var activeStream: SCStream?
+// SCStream keeps its output delegate weakly in some SDK releases, so hold a
+// strong reference for the lifetime of the capture.
+private var audioDelegate: AudioCaptureDelegate?
 
 private final class AudioCaptureDelegate: NSObject, SCStreamOutput {
     func stream(_ stream: SCStream,
@@ -153,6 +183,25 @@ private final class AudioCaptureDelegate: NSObject, SCStreamOutput {
         guard outputType == .audio else { return }
         writeSampleBuffer(sampleBuffer)
     }
+}
+
+// ScreenCaptureKit exposes the system-audio switch as an Objective-C property
+// whose Swift name has changed across SDK releases. Set it by selector so the
+// helper builds against any recent SDK and still enables audio at runtime.
+private func enableSystemAudio(_ configuration: SCStreamConfiguration) {
+    let candidates = [
+        "capturesSystemAudioEnabled",
+        "captureSystemAudioEnabled",
+        "systemAudioEnabled"
+    ]
+    for key in candidates {
+        let setter = "set" + key.prefix(1).uppercased() + String(key.dropFirst()) + ":"
+        if configuration.responds(to: NSSelectorFromString(setter)) {
+            configuration.setValue(true, forKey: key)
+            return
+        }
+    }
+    log("warning: no system-audio switch found on SCStreamConfiguration")
 }
 
 private func makeConfiguration() -> SCStreamConfiguration {
@@ -164,8 +213,8 @@ private func makeConfiguration() -> SCStreamConfiguration {
     configuration.sampleRate = 48000
     configuration.channelCount = 2
     configuration.showsCursor = false
-    configuration.capturesSystemAudioEnabled = true
     configuration.queueDepth = 5
+    enableSystemAudio(configuration)
     return configuration
 }
 
@@ -207,11 +256,12 @@ private func listSources() async throws {
     for application in content.applications {
         let pid = application.processID
         if pid == getpid() || seen.contains(pid) { continue }
-        if let bundle = application.bundleIdentifier, excludedBundleIds.contains(bundle) { continue }
+        let bundle = application.bundleIdentifier
+        if excludedBundleIds.contains(bundle) { continue }
         seen.insert(pid)
         parts.append("{\"id\":\"pid:\(pid)\",\"name\":\(jsonString(application.applicationName)),"
                      + "\"type\":\"application\",\"pid\":\(pid),"
-                     + "\"bundleId\":\(jsonString(application.bundleIdentifier ?? ""))}")
+                     + "\"bundleId\":\(jsonString(bundle))}")
     }
 
     print("[" + parts.joined(separator: ",") + "]")
@@ -235,7 +285,7 @@ private func makeStream(pid: pid_t?) async throws -> SCStream {
         }
         filter = SCContentFilter(display: display,
                                  includingApplications: [application],
-                                 exceptingApplications: [])
+                                 exceptingWindows: [])
     } else {
         filter = SCContentFilter(display: display, excludingWindows: [])
     }
@@ -243,7 +293,9 @@ private func makeStream(pid: pid_t?) async throws -> SCStream {
     let stream = SCStream(filter: filter,
                           configuration: makeConfiguration(),
                           delegate: nil)
-    try stream.addStreamOutput(AudioCaptureDelegate(),
+    let delegate = AudioCaptureDelegate()
+    audioDelegate = delegate
+    try stream.addStreamOutput(delegate,
                                type: .audio,
                                sampleHandlerQueue: DispatchQueue(label: "kaleidosync.audio"))
     try await stream.startCapture()
@@ -253,7 +305,7 @@ private func makeStream(pid: pid_t?) async throws -> SCStream {
 // MARK: - Entry point
 
 private func fail(_ message: String) -> Never {
-    FileHandle.standardError.write(Data(("[kaleidosync-sckit] " + message + "\n").utf8))
+    log(message)
     print("{\"ok\":false,\"detail\":\(jsonString(message))}")
     fflush(stdout)
     exit(1)

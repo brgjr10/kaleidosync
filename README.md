@@ -171,16 +171,33 @@ kaleidosync-desktop/
 │   ├── index.html         # UI shell
 │   ├── renderer.js        # Renderer process (Three.js + sketch engine)
 │   └── glsl-utils.js      # GLSL utilities (ES module)
-├── src/
-│   ├── audio/
-│   │   └── audio-capture.js   # pw-record/parec loopback capture + RMS/bass/treble/bpm analysis
-│   └── renderer/
-│       └── renderer.js        # Three.js ShaderMaterial harness
+├── native/
+│   ├── windows/
+│   │   ├── kaleidosync-wasapi.c    # WASAPI loopback + per-app process loopback
+│   │   ├── kaleidosync-wasapi.exe  # prebuilt (no toolchain needed on Windows)
+│   │   └── smtc.ps1                # SMTC now-playing + transport commands
+│   └── macos/
+│       └── kaleidosync-sckit.swift # ScreenCaptureKit system + per-app audio
 ├── assets/
 │   └── sketches.json      # Extracted sketch catalog (50 sketches, 92 variants)
 ├── extractor.js           # Catalog extractor from @wearesage/vue reference
+├── test/backends.test.js  # Backend contract + DSP tests (node --test)
 ├── package.json
 └── README.md
+```
+
+`app/src/audio/` is split into the platform-independent analysis core
+(`audio-capture.js`) and one backend per OS under `backends/`:
+
+```
+app/src/audio/
+├── audio-capture.js       # shared DSP: RMS/bass/treble/BPM + analytics stream
+└── backends/
+    ├── index.js           # createBackend(platform)
+    ├── shared.js          # PCM contract, process/cache/compile helpers
+    ├── linux.js           # pw-record/parec + MPRIS (gdbus); no helper binary
+    ├── windows.js         # kaleidosync-wasapi.exe + SMTC (PowerShell)
+    └── darwin.js          # kaleidosync-sckit.swift + AppleScript/ffmpeg fallback
 ```
 </details>
 
