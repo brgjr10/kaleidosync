@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, systemPreferences } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import * as fs from 'fs';
@@ -9,6 +9,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let mainWindow = null;
 let audioCapture = null;
+
+// Logging must never take the app down. When stdout is a pipe whose reader has
+// gone away (a packaged app launched from a desktop entry, a background service)
+// console.log writes raise EPIPE on process.stdout, which Node surfaces as an
+// uncaught exception in the main process. Swallow stream errors instead.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', () => {});
+}
 
 function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
@@ -77,8 +85,24 @@ async function initializeAudioCapture() {
 
 app.whenReady().then(async () => {
   console.log('[Main] App ready, creating window...');
+
+  // ScreenCaptureKit (macOS system audio) and WASAPI loopback both need the
+  // user's consent; ask once at startup so the first capture does not fail
+  // silently. Both platforms surface a clear error if consent is missing.
+  if (process.platform === 'darwin') {
+    try {
+      const status = systemPreferences.getMediaAccessStatus('screen');
+      if (status !== 'granted') {
+        console.log('[Main] Requesting Screen Recording permission, status:', status);
+        systemPreferences.askForMediaAccess('screen');
+      }
+    } catch (err) {
+      console.warn('[Main] Could not query Screen Recording permission:', err.message);
+    }
+  }
+
   createWindow();
-  
+
   // Initialize audio capture early
   await initializeAudioCapture();
 
@@ -125,41 +149,42 @@ ipcMain.handle('audio:get-analytics', async () => {
   return { volume: 0, stream: 0, level: 0 };
 });
 
-ipcMain.handle('audio:get-metadata', async () => {
-  if (!audioCapture || !audioCapture.selectedSource) {
-    return { status: 'idle', metadata: null, playing: false };
-  }
-  const source = audioCapture.sources.find(s => s.id === audioCapture.selectedSource);
-  if (!source) {
-    return { status: 'idle', metadata: null, playing: false };
-  }
-  const mprisId = audioCapture.mprisIdentityFor(source);
-  const playing = audioCapture.playing;
-  if (!mprisId) {
-    return { status: playing ? 'playing' : 'paused', metadata: null, playing, mprisId: null };
-  }
-  const metadata = await audioCapture.queryMprisMetadata(mprisId);
-  return { status: playing ? 'playing' : 'paused', metadata, playing, mprisId };
+// Which audio backend is active and what it can do. The renderer uses this to
+// explain a missing source list ("WASAPI: no output device enabled") instead of
+// showing an empty dropdown.
+ipcMain.handle('audio:get-backend', async () => {
+  await initializeAudioCapture();
+  if (!audioCapture) return null;
+  return audioCapture.getBackendStatus();
 });
 
-ipcMain.handle('audio:mpris-command', async (event, command) => {
-  console.log('[Main] audio:mpris-command received:', command);
+// Now-playing metadata. Backends: MPRIS (Linux), SMTC (Windows), AppleScript
+// (macOS). Returns metadata === null when the source is unknown to the OS.
+ipcMain.handle('audio:get-metadata', async () => {
+  await initializeAudioCapture();
   if (!audioCapture || !audioCapture.selectedSource) {
-    console.log('[Main] mpris-command: no audioCapture or selectedSource');
-    return false;
+    return { status: 'idle', metadata: null, playing: false };
   }
-  const source = audioCapture.sources.find(s => s.id === audioCapture.selectedSource);
-  if (!source) {
-    console.log('[Main] mpris-command: selected source not found:', audioCapture.selectedSource);
-    return false;
-  }
-  const mprisId = audioCapture.mprisIdentityFor(source);
-  console.log('[Main] mpris-command: source', source.name, '-> mprisId', mprisId);
-  if (!mprisId) {
-    return false;
-  }
-  const result = await audioCapture.sendMprisCommand(mprisId, command);
-  console.log('[Main] mpris-command result:', result);
+  const metadata = await audioCapture.getMetadata();
+  const playing = metadata ? metadata.status === 'playing' : audioCapture.playing;
+  return {
+    status: playing ? 'playing' : metadata?.status || 'paused',
+    metadata,
+    playing,
+    // The renderer treats a non-null mprisId as "this source exposes media
+    // controls". Keep the field name for compatibility; it is the backend id.
+    mprisId: metadata ? audioCapture.backend.id : null,
+    backend: audioCapture.backend.id
+  };
+});
+
+// Transport control (play/pause, next, previous). Backends: MPRIS, SMTC,
+// AppleScript. Returns false when the backend cannot control the source.
+ipcMain.handle('audio:mpris-command', async (event, command) => {
+  await initializeAudioCapture();
+  if (!audioCapture) return false;
+  const result = await audioCapture.sendCommand(command);
+  console.log('[Main] transport command', command, '->', result);
   return result;
 });
 

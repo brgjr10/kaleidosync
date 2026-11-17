@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('kaleidosync', {
       getAnalytics: () => ipcRenderer.invoke('audio:get-analytics'),
       getMprisMetadata: () => ipcRenderer.invoke('audio:get-metadata'),
       refreshDevices: () => ipcRenderer.invoke('audio:refresh-devices'),
+      getBackend: () => ipcRenderer.invoke('audio:get-backend'),
       sendMprisCommand: (cmd) => ipcRenderer.invoke('audio:mpris-command', cmd),
       onAnalyticsUpdate: (callback) => {
         const handler = (_, data) => callback(data);

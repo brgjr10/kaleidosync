@@ -103,7 +103,22 @@ async function loadAudioSources() {
   try {
     const sources = await window.kaleidosync.audio.enumerateDevices();
     populateAudioSourceSelect(sources);
-    
+
+    if (sources.length === 0 && window.kaleidosync.audio.getBackend) {
+      // Every platform can fail to find a source for a different reason
+      // (PipeWire not running, no WASAPI output device, Screen Recording
+      // permission denied). Surface the backend's own explanation instead of
+      // leaving an empty dropdown.
+      const backend = await window.kaleidosync.audio.getBackend();
+      if (backend) {
+        console.warn(
+          '[Kaleidosync] No audio sources. Backend:',
+          backend.label,
+          '-', backend.detail,
+          backend.hint || ''
+        );
+      }
+    }
     // Prefer Spotify specifically, then any application source, then system monitor
     const spotifySource = sources.find(s => s.name.toLowerCase().includes('spotify'));
     const appSource = spotifySource || sources.find(s => s.type === 'application');

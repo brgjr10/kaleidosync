@@ -19,15 +19,37 @@ Standalone desktop app that renders 50 Kaleidosync visualizers synced to system 
 ## Features
 
 - **50+ Visualizers** — Full sketch catalog from the Kaleidosync reference implementation, each with per-sketch variants and "magic" tweening.
-- **System Audio Capture** — Captures OS loopback/monitor audio via PipeWire (`pw-record`) / PulseAudio (`parec`) on Linux, WASAPI loopback on Windows (stub), ScreenCaptureKit on macOS (stub). **No Spotify API, no tokens, no DOM tapping.**
+- **System Audio Capture** — Captures OS loopback/monitor audio on every platform through a per-platform backend with one shared PCM contract (f32le, 48 kHz, stereo): PipeWire (`pw-record`) / PulseAudio (`parec`) on Linux, WASAPI loopback + per-app process loopback on Windows (`native/windows/kaleidosync-wasapi.c`), ScreenCaptureKit system + per-app audio on macOS (`native/macos/kaleidosync-sckit.swift`). **No Spotify API, no tokens, no DOM tapping.**
 - **Real-time Audio Reactivity** — Adaptive volume/stream analysis + bass/treble band-split + BPM beat detection drives visuals each frame.
 - **Full Shader Parity** — GLSL utils (`k_kale`, `k_orb`, `k_swap`, etc.), `wrapMainImage()` main()/`mainImage()` handling, boolean-uniform tween helpers, `vUv` / `iResolution` / `iTime` environment.
 - **Responsive Rendering** — Works at any window size, aspect ratio, and device pixel ratio.
 - **Variant System** — Per-sketch variants with interpolation ("magic" tweening) and shuffle.
-- **MPRIS Integration** — Track title/artist/album, playback controls (Prev/Play-Pause/Next), hidden-mode panel.
+- **Now-Playing Integration** — Track title/artist/album and playback controls (Prev/Play-Pause/Next) via MPRIS (Linux), SMTC (Windows) or AppleScript (macOS), mirrored in the hidden-mode panel.
 - **Hidden Mode (`U`)** — Centered bottom auto-hide panel (auto-hides after 3s, reappears on mouse move, hover pins); mirror of visible UI with scrolling marquee.
 - **50 Sketches with Names** — "Orb Kaleidoscope", "Hue Orbit", "Digital Abyss", "Extreme Warp", "Warp Grid", etc.
 - **Linux AppImage / deb, Windows NSIS / portable, macOS DMG / zip** — CI builds all targets.
+
+### Platform audio support
+
+| Capability | Linux | Windows | macOS |
+|------------|-------|---------|-------|
+| System audio (loopback of the default output) | PipeWire `pw-record` / PulseAudio `parec` | WASAPI loopback (`endpoint:<n>`) | ScreenCaptureKit (`system`) |
+| Per-application capture | PipeWire node (`--target`) | WASAPI process loopback (`pid:<pid>`, Win10 2004+) | ScreenCaptureKit (`pid:<pid>`) |
+| Now-playing title / artist / album | MPRIS (`gdbus`) | SMTC (`smtc.ps1`) | AppleScript (Spotify, Apple Music) |
+| Transport controls (play/pause, next, previous) | MPRIS | SMTC | AppleScript |
+| Play/pause gating of the visuals | yes | yes | where metadata is available |
+| Runtime requirement | PipeWire or PulseAudio | none (helper is prebuilt) | Xcode CLT, else ffmpeg + a virtual loopback device |
+
+Every backend emits the same PCM format (32-bit float, 48 kHz, stereo
+interleaved), so volume, adaptive stream, bass/treble split and BPM detection
+behave identically across platforms. `app/src/audio/backends/` holds the
+per-platform implementations; `app/src/audio/audio-capture.js` is shared.
+
+Rebuild the Windows helper after changing `native/windows/kaleidosync-wasapi.c`:
+
+```bash
+npm run build:native   # cross-compiles with mingw-w64 (apt install gcc-mingw-w64-x86-64)
+```
 
 ---
 
@@ -80,9 +102,11 @@ Because it runs on every commit, you get a versioned, downloadable release for *
 ### Prerequisites
 
 - **Node.js 20+**
-- **Linux**: PipeWire or PulseAudio (`pw-record` or `parec` must be available)
-- **Windows**: WASAPI loopback (built-in)
-- **macOS**: ScreenCaptureKit / BlackHole (experimental)
+- **Linux**: PipeWire or PulseAudio (`pw-dump`/`pw-record`, or `pactl`/`parec`)
+- **Windows**: nothing extra — `native/windows/kaleidosync-wasapi.exe` is prebuilt and shipped. Per-app capture needs Windows 10 2004 (build 19041) or newer.
+- **macOS**: Xcode Command Line Tools (`xcode-select --install`) so the ScreenCaptureKit helper can be compiled and cached on first run. Without them the app falls back to ffmpeg + `avfoundation`, which needs a virtual loopback device such as BlackHole.
+
+No Spotify API, tokens, or DOM tapping is used on any platform.
 
 ### Install & Run
 
@@ -115,7 +139,7 @@ Outputs in `dist/`.
 | `M` | Magic variant tween |
 | `F` | Fullscreen |
 | `U` | Toggle UI overlay / show hidden mode |
-| `Ctrl`/`Cmd` + `←` / `→` / `Space` | MPRIS Previous / Next / Play-Pause |
+| `Ctrl`/`Cmd` + `←` / `→` / `Space` | Previous / Next / Play-Pause (MPRIS, SMTC or AppleScript) |
 
 > Tip: while the UI overlay is hidden, hover the playback controls to pin them; the now-playing title/artist mirror into a compact hidden-mode panel.
 
@@ -129,6 +153,10 @@ Outputs in `dist/`.
 4. Play audio (Spotify, YouTube, browser tab, any system audio) — visuals will react
 
 **Linux**: Prefer devices named "Monitor" or "Loopback" (e.g., `alsa_output.pci-*.analog-stereo.monitor`). If Spotify is present in the source list, it will be selected automatically on launch when playback is active. If Spotify is opened **after** Kaleidosync starts, the source list retries on a backoff until the app's PipeWire node registers — no manual selection needed.
+
+**Windows**: Pick any "System Audio" entry for everything the PC is playing, or a specific app (Spotify, browser, media player) for per-application capture. Per-app entries appear while the app has an active audio session, and require Windows 10 2004 (build 19041) or newer. If no entries appear, check that an output device is enabled in Windows Sound settings.
+
+**macOS**: Pick "System Audio" for everything, or a specific app. If the list is empty, grant Screen Recording permission in System Settings > Privacy & Security > Screen Recording, then restart the app. If the ScreenCaptureKit helper cannot be compiled (no Xcode Command Line Tools), the app falls back to ffmpeg + `avfoundation` input devices, which needs a virtual loopback device such as BlackHole for system audio.
 
 ---
 
@@ -217,4 +245,4 @@ This appports the full visualizer set and rewrites all sync logic, GUI, and audi
 
 ## Acknowledgements
 
-Visualizer shaders and sketch catalog adapted from [zachwinter/kaleidosync](https://github.com/zachwinter/kaleidosync). All audio capture, shader wiring, variant interpolation, MPRIS integration, BPM detection, and desktop packaging are original to this repo.
+Visualizer shaders and sketch catalog adapted from [zachwinter/kaleidosync](https://github.com/zachwinter/kaleidosync). All audio capture, shader wiring, variant interpolation, now-playing integration, BPM detection, and desktop packaging are original to this repo.

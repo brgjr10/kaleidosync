@@ -896,7 +896,8 @@
         <span class="num">01</span>
         <h4>Audio capture</h4>
         <p>Loopback / monitor source via PipeWire (<code>pw-record</code>) or PulseAudio (<code>parec</code>) on Linux,
-          WASAPI loopback on Windows, ScreenCaptureKit / BlackHole on macOS.</p>
+          WASAPI loopback (system and per-app) on Windows, ScreenCaptureKit system and per-app audio on macOS. Every
+          backend emits the same 48 kHz stereo float32 stream, so the analysis is identical.</p>
       </div>
       <span class="arrow">▸</span>
       <div class="step">
@@ -937,8 +938,9 @@
           interpolation; <code>M</code> triggers a magic tween between variants.</li>
         <li><strong>Catalog</strong> — 50 sketches / 92 variants loaded from <code>assets/sketches.json</code> via IPC
           (no brittle <code>file://</code> relative fetch).</li>
-        <li><strong>MPRIS</strong> — track title/artist/album plus Prev/Play-Pause/Next controls, shown above the meters
-          and mirrored in hidden mode (<code>U</code>).</li>
+        <li><strong>Now playing</strong> — track title/artist/album plus Prev/Play-Pause/Next controls via MPRIS
+          (Linux), SMTC (Windows) or AppleScript (macOS), shown above the meters and mirrored in hidden mode
+          (<code>U</code>).</li>
       </ul>
     </div>
   </section>
@@ -965,7 +967,9 @@
       <div class="card">
         <div class="tag win">Windows</div>
         <h3>NSIS installer &amp; portable</h3>
-        <p>WASAPI loopback capture — built in, no extra drivers. NSIS installer (.exe) and a portable .zip bundle.</p>
+        <p>WASAPI loopback capture — system audio plus per-app process loopback (Windows 10 2004+). The capture
+          helper ships prebuilt, so there is nothing extra to install. NSIS installer (.exe) and a portable .zip
+          bundle.</p>
         <div class="plat row">
           <a href="#releases">NSIS installer (.exe)</a>
           <a href="#releases">Portable (.zip)</a>
@@ -974,7 +978,8 @@
       <div class="card">
         <div class="tag mac">macOS</div>
         <h3>DMG &amp; ZIP</h3>
-        <p>ScreenCaptureKit / BlackHole capture (experimental). Universal DMG and ZIP builds for Apple Silicon and
+        <p>ScreenCaptureKit capture — system audio and per-app audio, no virtual device needed. Requires the Xcode
+          Command Line Tools to build the helper on first run. Universal DMG and ZIP builds for Apple Silicon and
           Intel.</p>
         <div class="plat row">
           <a href="#releases">DMG (universal)</a>
@@ -1005,7 +1010,7 @@
           <td><strong>Kaleidosync Desktop (this repo)</strong></td>
           <td><a href="https://github.com/brgjr10">brgjr10</a> (maintainer)</td>
           <td>Full rewrite: module system, audio capture, shader wiring, variant interpolation, IPC bridge, UI gating,
-            MPRIS, BPM detection, desktop packaging.</td>
+            now-playing integration, BPM detection, desktop packaging.</td>
         </tr>
         <tr>
           <td>Original Kaleidosync concept</td>
@@ -1035,7 +1040,7 @@
         </tr>
         <tr>
           <td>Desktop integration</td>
-          <td>MPRIS (Linux)</td>
+          <td>MPRIS (Linux) · SMTC (Windows) · AppleScript (macOS)</td>
           <td>Track metadata + playback controls, gated to "playing" state; hidden-mode panel mirror.</td>
         </tr>
         <tr>

@@ -2,17 +2,47 @@
 
 ## Audio Capture Approach
 
+Every platform runs through the same analysis core in `app/src/audio/audio-capture.js`.
+A backend only has to enumerate sources and emit PCM on stdout in one fixed
+format — 32-bit float little-endian, 48 kHz, 2 channels interleaved — so volume,
+adaptive stream, bass/treble and BPM detection are literally the same code on all
+three OSs.
+
 | OS | Method | Status |
 |----|--------|--------|
-| Linux | `pw-record` (PipeWire) / `parec` (PulseAudio) — captures default sink monitor | ✅ Implemented |
-| Windows | WASAPI loopback via Electron `desktopCapturer` + Web Audio | 🔄 Planned (stub) |
-| macOS | ScreenCaptureKit system audio / BlackHole virtual device | 🔄 Planned (stub) |
+| Linux | `pw-dump`/`pw-record` (PipeWire) or `pactl`/`parec` (PulseAudio); MPRIS metadata | ✅ Implemented |
+| Windows | WASAPI loopback + per-app process loopback (`native/windows/kaleidosync-wasapi.c`, prebuilt `.exe`); SMTC metadata (`smtc.ps1`) | ✅ Implemented |
+| macOS | ScreenCaptureKit system + per-app audio (`native/macos/kaleidosync-sckit.swift`, compiled on first run); AppleScript metadata | ✅ Implemented |
 
 **Linux implementation details:**
 - Spawns `pw-record -t <target> -r 48000 -c 2 -f f32le -` or `parec -d @DEFAULT_MONITOR@ --rate=48000 --channels=2 --format=float32le --raw`
 - Reads Float32LE interleaved stereo from stdout
 - Computes RMS volume per frame, feeds Phase 1 analysis algorithm (adaptive + instantaneous blend)
 - Emits `volume`, `stream`, `level` at 60fps via IPC to renderer
+
+**Windows implementation details:**
+- `kaleidosync-wasapi.exe` enumerates active render endpoints (`endpoint:<n>`) and
+  per-app audio sessions (`pid:<pid>`), then captures them via `IAudioClient`
+  loopback or `ActivateAudioInterfaceAsync` process loopback.
+- Per-app process loopback needs Windows 10 2004 (build 19041) or newer; older
+  builds fall back to system loopback.
+- `smtc.ps1` supplies now-playing metadata and transport commands over WinRT.
+
+**macOS implementation details:**
+- `kaleidosync-sckit.swift` uses ScreenCaptureKit: `capturesSystemAudioEnabled`
+  for system audio, `SCContentFilter(includingApplications:)` for per-app audio.
+  No BlackHole or other virtual device is required.
+- The helper is compiled with `swiftc` on first run and cached; Xcode Command Line
+  Tools are required. Without them the backend falls back to ffmpeg +
+  `avfoundation` input devices.
+- Now-playing metadata uses AppleScript for Spotify and Apple Music.
+
+**Cross-platform verification status:**
+- Linux: verified end-to-end (enumeration, capture, DSP, shaders) under Xvfb.
+- Windows: `kaleidosync-wasapi.exe` cross-compiles warning-free with mingw-w64 and
+  is smoke-tested under Wine (`--check`, `--list`, continuous PCM from `--capture`).
+- macOS: the Swift helper is type-checked in CI on `macos-latest`; it still needs a
+  real macOS run to confirm runtime behaviour and Screen Recording consent.
 
 **No Spotify Web API / PKCE / tokens / DOM media-element tapping** — pure OS-level loopback capture.
 
@@ -60,7 +90,7 @@ Full util set: `k_hue`, `k_kale`, `k_orb`, `k_rainbow`, `k_rotate2d`, `k_sphere`
 
 ## Known Gaps / TODOs
 
-1. **Windows/macOS audio capture** — Currently stubbed; Linux is primary target. Needs WASAPI loopback (Windows) and ScreenCaptureKit (macOS) implementation.
+1. **Windows per-app capture on older builds** — Process loopback needs Windows 10 2004 (build 19041)+; older builds capture system loopback only.
 2. **Shader compilation validation at startup** — Not yet implemented; should run headless compile check on all 50 shaders at launch.
 3. **Thumbnail browser** — Sketch list is dropdown only; could add canvas thumbnails.
 4. **Settings persistence** — Last sketch/variant/device not yet saved to disk (electron-store or similar).
@@ -92,7 +122,7 @@ Full util set: `k_hue`, `k_kale`, `k_orb`, `k_rainbow`, `k_rotate2d`, `k_sphere`
 
 - [x] `assets/sketches.json` contains all 50 sketches from reference (count matches, verbatim shaders/variants)
 - [x] GLSL utils include `k_swap` + full parity set; all sketches compile
-- [x] App captures system/monitor audio on Linux; visuals react to Spotify playback
+- [x] App captures system/monitor audio on Linux, Windows and macOS; visuals react to Spotify playback
 - [x] `volume/stream` + `i*` counterparts drive shaders each frame; bool tween uniforms function
 - [x] Renders correctly at arbitrary window sizes/aspect ratios, resize, fullscreen
 - [x] Next/prev/random/magic and variant switching work across full catalog
