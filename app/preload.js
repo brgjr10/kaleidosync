@@ -26,8 +26,5 @@ contextBridge.exposeInMainWorld('kaleidosync', {
     },
   sketches: {
     getCatalog: () => ipcRenderer.invoke('sketches:get-catalog')
-  },
-  app: {
-    getVersion: () => ipcRenderer.invoke('app:get-version')
   }
 });

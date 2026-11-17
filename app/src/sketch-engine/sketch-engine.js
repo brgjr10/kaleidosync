@@ -96,7 +96,7 @@ export class SketchEngine {
     const variants = this.currentSketch.variants;
     if (variantIndex < 0 || variantIndex >= variants.length) return false;
     
-    const targetVariant = variants[variantIndex];
+    const targetVariant = this.cloneVariant(variants[variantIndex]);
     this.tweenTo(targetVariant);
     this.currentVariantIndex = variantIndex;
     return true;

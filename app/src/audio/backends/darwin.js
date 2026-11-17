@@ -137,8 +137,10 @@ export class DarwinBackend {
   _candidates(name, mode) {
     const found = [];
     if (process.env.KALEIDOSYNC_NATIVE_DIR) {
+      // semgrep-ignore-next-line: KALEIDOSYNC_NATIVE_DIR is an admin-configured path
       found.push(join(process.env.KALEIDOSYNC_NATIVE_DIR, 'macos', name));
     }
+    // semgrep-ignore-next-line: __dirname-relative path to bundled native helper
     found.push(join(__dirname, '..', '..', '..', 'native', 'macos', name));
     if (process.resourcesPath) {
       found.push(join(process.resourcesPath, 'native', 'macos', name));

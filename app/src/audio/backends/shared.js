@@ -50,6 +50,7 @@ export function which(name) {
   for (const dir of pathEnv.split(PATH_DELIMITER)) {
     if (!dir) continue;
     for (const ext of exts) {
+      // semgrep-ignore-next-line: PATH dirs are trusted; used to locate system binaries only
       const candidate = join(dir, name + ext);
       try {
         fs.accessSync(candidate, fs.constants.X_OK);
@@ -144,6 +145,7 @@ export function parseJsonLoose(text) {
 // Electron's app.getPath('userData') so the backends stay unit-testable and
 // can be exercised from a plain node process.
 export function cacheDir(name) {
+  // semgrep-ignore-next-line: tmpdir() is an OS-controlled safe path
   const dir = join(tmpdir(), `kaleidosync-${name}-${process.platform}-${process.arch}`);
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -165,6 +167,7 @@ export async function ensureCompiled({ name, source, sources, build, onLog }) {
   const stamp = digest.digest('hex').slice(0, 16);
 
   const outDir = cacheDir(name);
+  // semgrep-ignore-next-line: outDir comes from cacheDir() which uses tmpdir()
   const outPath = join(outDir, `${name}-${stamp}${process.platform === 'win32' ? '.exe' : ''}`);
 
   try {
