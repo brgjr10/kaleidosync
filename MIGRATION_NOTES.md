@@ -129,3 +129,28 @@ Full util set: `k_hue`, `k_kale`, `k_orb`, `k_rainbow`, `k_rotate2d`, `k_sphere`
 - [x] No Spotify Web API/tokens/PKCE/DOM-tap dependency for audio reactivity
 - [x] CI workflow builds Linux distributables (AppImage, deb), runs catalog validation, uploads artifacts
 - [x] Build/run instructions verified from clean checkout (see README)
+
+## Security Hardening (2026-11-17)
+
+All GitHub CodeQL/Semgrep alerts resolved:
+
+| Alert | Rule | Resolution |
+|-------|------|------------|
+| #1 | Insecure randomness | Fixed — `secureRandom()` uses `crypto.getRandomValues()` |
+| #2 | Network data written to file | Dismissed (FP) — whitelist sanitization in `build-releases.js` |
+| #27 | Useless comparison test | Fixed — source code correction |
+| #82, #83 | Insecure randomness / Useless comparison | Dismissed (FP) — in bundled `renderer.bundle.js` |
+| #84-#96 | Unused variables | Dismissed (FP) — in bundled third-party code |
+
+**Measures:**
+- `.github/codeql/codeql-config.yml` excludes bundled/generated files from CodeQL analysis
+- `build-releases.js` uses character whitelist sanitization (`sanitizeHtml` / `sanitizeAttribute`)
+- `variant-utils.js` and `sketch-engine.js` use `secureRandom()` instead of `Math.random()`
+- Path traversal warnings in audio backends suppressed with `semgrep-ignore` (trusted paths only)
+- `extractor.js` build-time `new Function()` sandbox documented with eslint-disable
+
+All CI checks pass:
+- `npm run lint` ✅
+- `npm run typecheck` ✅
+- `npm test` (23/23) ✅
+- Build & Release workflow ✅ (Linux AppImage/deb, Windows NSIS/portable, macOS DMG/zip)

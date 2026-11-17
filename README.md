@@ -241,6 +241,29 @@ Every issue listed in `ISSUES.md` and `MIGRATION_NOTES.md` has been tracked and 
 
 ---
 
+## Security & Code Quality (2026-11-17)
+
+<details>
+
+All GitHub CodeQL security scanning alerts resolved:
+
+| Alert | Rule | Resolution |
+|-------|------|------------|
+| #1 | Insecure randomness | Fixed — source uses `crypto.getRandomValues()` |
+| #2 | Network data written to file | Dismissed (false positive) — whitelist sanitization applied before write |
+| #27 | Useless comparison test | Fixed — source code correction |
+| #82, #83 | Insecure randomness / Useless comparison | Dismissed (false positive) — in bundled `renderer.bundle.js` (d3/three.js) |
+| #84-#96 | Unused variables | Dismissed (false positive) — in bundled third-party code |
+
+**Protective measures:**
+- CodeQL config (`.github/codeql/codeql-config.yml`) excludes bundled/generated files from analysis
+- Workflow updated to use config file
+- All project source passes `npm run lint`, `npm run typecheck`, `npm test` (23/23 tests pass)
+
+</details>
+
+---
+
 ## Reference Implementation
 <details>
 

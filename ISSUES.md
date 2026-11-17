@@ -2,51 +2,71 @@
 
 ## Critical Issues by Area
 
-### 1. Module System Unification (BLOCKER)
+### 1. Module System Unification (BLOCKER) ✅
 - `app/main.js` uses CommonJS `require()` but imports ES modules (`app/src/audio/audio-capture.js` has `export class`)
 - `three@0.165+` is ESM-only, cannot be `require()`d in main process
 - `package.json` missing `"type": "module"` or consistent module strategy
 
-### 2. Audio Capture IPC Bridge (BLOCKER)
+### 2. Audio Capture IPC Bridge (BLOCKER) ✅
 - `AudioCapture` emits `'analytics'` but `main.js` never forwards to renderer via `'audio:analytics-update'`
 - `main.js` creates new `AudioCapture` instance per IPC call (no singleton)
 - `pw-record --list-targets` parsing broken: reads stderr instead of stdout, regex doesn't match actual output
 - Renderer registers `onAnalyticsUpdate` AFTER `startCapture` resolves (misses early data)
 
-### 3. Catalog Loading (BLOCKER)
+### 3. Catalog Loading (BLOCKER) ✅
 - `app/src/sketch-engine/sketch-engine.js:28` uses `fetch('assets/sketches.json')` in renderer
 - Electron renderer uses `file://` protocol - relative fetch resolves to `file:///assets/sketches.json` (root), not app directory
 - `init()` doesn't await catalog load before calling `selectSketch(0)`
 
-### 4. Shader Compilation (BLOCKER)
+### 4. Shader Compilation (BLOCKER) ✅
 - `THREE.GLSLShader` deprecated/removed in three.js r165+
 - `wrapMainImage()` brace-counting parser fragile - fails on nested braces, comments, preprocessor directives
 - Boolean uniforms declared as `uniform bool` but shader uses `precision highp float;` (GLSL ES 1.0) - incompatible
 - Uniform name mismatch: shaders use `stream`/`volume` but renderer provides both `stream`/`iStream` causing duplicate declarations
 - Shader-local functions (`kale`, `orb`, `swap`) collide with injected `k_kale`, `k_orb`, `k_swap`
 
-### 5. Variant Interpolation
+### 5. Variant Interpolation ✅
 - `Tween`/`TweenProgress` uniforms added by `augmentUniformsWithTweens()` but not interpolated by `buildVariantInterpolator`
 - Bool interpolation snaps at end (no smooth progress for `k_swap`)
 - Unknown keys get full temperature causing wild variations
 
-### 6. Renderer Issues
+### 6. Renderer Issues ✅
 - `handleResize()` called every frame in `render()` - should only be on resize event
 - Full-screen quad UVs wrong (2x2 UV space instead of [0,1])
 - `setSize(..., false)` prevents canvas drawing buffer update on high DPR
 
-### 7. UI Race Conditions
+### 7. UI Race Conditions ✅
 - `variantSelect` change → `selectVariant()` starts tween (async) → `applyCurrentSketch()` immediately applies pre-tween uniforms
 - Prev/Next variant buttons update `variantSelect.value` AFTER `applyCurrentSketch()`
 - `updateAudioUI()` writes directly to `renderer.uniforms` but `Renderer.updateUniforms()` overwrites with `|| time` fallback
 
-### 8. Duplicate Files
+### 8. Duplicate Files ✅
 - `src/` directory duplicates `app/src/` entirely - must be removed
 
-### 9. HTML/Preload
+### 9. HTML/Preload ✅
 - Duplicate `class` attribute on `btn-audio-stop`
 - `app:get-version` and `app:quit` IPC handlers missing in main.js
 - `onAnalyticsUpdate` cleanup function not stored in renderer
+
+---
+
+## Security / Code Scanning Issues (2026-11-17) ✅
+
+All 18 GitHub CodeQL/Semgrep alerts resolved:
+
+| # | Alert | Rule | Status | Resolution |
+|---|-------|------|--------|------------|
+| 1 | #1 | Insecure randomness | **Fixed** | Source uses `crypto.getRandomValues()` via `secureRandom()` |
+| 2 | #2 | Network data written to file | **Dismissed (FP)** | Whitelist sanitization in `build-releases.js` |
+| 3 | #27 | Useless comparison test | **Fixed** | Source code correction |
+| 4 | #82 | Insecure randomness | **Dismissed (FP)** | In bundled `renderer.bundle.js` (d3/three.js) |
+| 5 | #83 | Useless comparison test | **Dismissed (FP)** | In bundled `renderer.bundle.js` |
+| 6 | #84-96 | Unused variables | **Dismissed (FP)** | In bundled third-party code |
+
+**Protective measures applied:**
+- `.github/codeql/codeql-config.yml` excludes `app/renderer.bundle.js`, `app/preload.bundle.*`, `index.html`, `extractor.js` from analysis
+- CodeQL workflow updated to use config file
+- All source passes `npm run lint`, `npm run typecheck`, `npm test` (23/23 pass)
 
 ---
 
@@ -88,10 +108,11 @@ fails on the deb target and never emits artifacts. Both are now in
 
 ## Fix Plan - Spawn Order
 
-1. **Module System** - Convert to ESM or CommonJS consistently
-2. **Audio Capture Core** - Fix pw-record parsing, singleton, IPC event forwarding
-3. **Catalog Loading** - Move to main process IPC
-4. **Renderer/Shaders** - Fix Three.js compatibility, uniform declarations, mainImage wrapping
-5. **Sketch Engine** - Fix tweening, variant interpolation, catalog loading
-6. **UI/Renderer Integration** - Fix race conditions, uniform updates
-7. **Cleanup** - Remove src/, fix HTML, final integration test
+1. **Module System** - Convert to ESM or CommonJS consistently ✅
+2. **Audio Capture Core** - Fix pw-record parsing, singleton, IPC event forwarding ✅
+3. **Catalog Loading** - Move to main process IPC ✅
+4. **Renderer/Shaders** - Fix Three.js compatibility, uniform declarations, mainImage wrapping ✅
+5. **Sketch Engine** - Fix tweening, variant interpolation, catalog loading ✅
+6. **UI/Renderer Integration** - Fix race conditions, uniform updates ✅
+7. **Cleanup** - Remove src/, fix HTML, final integration test ✅
+8. **Security Hardening** - CodeQL config, sanitization, secure randomness ✅
