@@ -157,12 +157,11 @@ function firstExecutableIn(dir) {
 
 function softwareGlArgs() {
   if (process.env.KALEIDOSYNC_SOFTWARE_GL === '0') return [];
-  // macOS CI runners lack GPU; SwiftShader/ANGLE not reliable on macOS.
-  // Use --disable-gpu --disable-software-rasterizer to force CPU rendering.
+  // macOS CI runners lack GPU; try SwiftShader first, then fallback to --disable-gpu.
   if (process.platform === 'darwin') {
     return [
-      '--disable-gpu',
-      '--disable-software-rasterizer',
+      '--use-gl=swiftshader',
+      '--enable-unsafe-swiftshader',
       '--disable-gpu-sandbox'
     ];
   }
