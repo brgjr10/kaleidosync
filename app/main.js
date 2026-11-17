@@ -24,15 +24,18 @@ function createWindow() {
   
   let preloadPath;
   if (app.isPackaged) {
-    // Prefer asar path (works on all platforms with Electron 20+)
-    // __dirname = app.asar/app/ in packaged app
+    // Check unpacked asar location first (asarUnpack extracts to app.asar.unpacked/)
+    const unpackedPath = join(dirname(process.resourcesPath), 'app.asar.unpacked', 'app', 'preload.bundle.cjs');
+    // Also check asar path
     const asarPath = join(__dirname, 'preload.bundle.cjs');
-    
-    // Also check external resources as fallback
+    // External resources path
     const externalPath = join(process.resourcesPath, 'preload.bundle.cjs');
     
-    // Try asar path first (more reliable across platforms)
-    if (fs.existsSync(asarPath)) {
+    // Prefer unpacked path (works on all platforms with asarUnpack)
+    if (fs.existsSync(unpackedPath)) {
+      preloadPath = unpackedPath;
+      console.log('[Main] Using unpacked preload path:', preloadPath);
+    } else if (fs.existsSync(asarPath)) {
       preloadPath = asarPath;
       console.log('[Main] Using asar preload path:', preloadPath);
     } else if (fs.existsSync(externalPath)) {

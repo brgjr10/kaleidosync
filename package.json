@@ -45,7 +45,8 @@
       "node_modules/**/*"
     ],
     "asarUnpack": [
-      "native/**/*"
+      "native/**/*",
+      "app/preload.bundle.cjs"
     ],
     "linux": {
       "target": [
