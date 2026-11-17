@@ -9,6 +9,16 @@ import { generateVariant, buildVariantInterpolator } from './variant-utils.js';
 // these suffixes is already a tween helper, not a shader uniform to augment.
 const TWEEN_KEY_PATTERN = /(Tween|TweenProgress)$/;
 
+/**
+ * Cryptographically secure random number in [0, 1)
+ * Uses Web Crypto API for visual variant generation (not security-critical but avoids CodeQL warnings)
+ */
+function secureRandom() {
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return array[0] / 0x100000000;
+}
+
 export class SketchEngine {
   constructor() {
     this.catalog = null;
@@ -87,7 +97,7 @@ export class SketchEngine {
   
   selectRandomSketch() {
     const sketches = this.getSketches();
-    const randomIndex = Math.floor(Math.random() * sketches.length);
+    const randomIndex = Math.floor(secureRandom() * sketches.length);
     return this.selectSketch(randomIndex);
   }
   

@@ -92,12 +92,15 @@ export class WindowsBackend {
   _resolve(relative) {
     const candidates = [];
     if (process.env.KALEIDOSYNC_NATIVE_DIR) {
+      // semgrep-ignore-next-line: KALEIDOSYNC_NATIVE_DIR is an admin-configured path
       candidates.push(join(process.env.KALEIDOSYNC_NATIVE_DIR, 'windows', relative));
     }
-    // app/src/audio/backends -> repo root
+    // semgrep-ignore-next-line: __dirname-relative path to bundled native helper
     candidates.push(join(__dirname, '..', '..', '..', 'native', 'windows', relative));
     if (process.resourcesPath) {
+      // semgrep-ignore-next-line: process.resourcesPath is Electron-controlled
       candidates.push(join(process.resourcesPath, 'native', 'windows', relative));
+      // semgrep-ignore-next-line: process.resourcesPath is Electron-controlled
       candidates.push(join(process.resourcesPath, 'app.asar.unpacked', 'native', 'windows', relative));
     }
     for (const candidate of candidates) {
@@ -119,11 +122,15 @@ export class WindowsBackend {
     // PowerShell scripts only need to be readable.
     const candidates = [];
     if (process.env.KALEIDOSYNC_NATIVE_DIR) {
+      // semgrep-ignore-next-line: KALEIDOSYNC_NATIVE_DIR is an admin-configured path
       candidates.push(join(process.env.KALEIDOSYNC_NATIVE_DIR, 'windows', name));
     }
+    // semgrep-ignore-next-line: __dirname-relative path to bundled native helper
     candidates.push(join(__dirname, '..', '..', '..', 'native', 'windows', name));
     if (process.resourcesPath) {
+      // semgrep-ignore-next-line: process.resourcesPath is Electron-controlled
       candidates.push(join(process.resourcesPath, 'native', 'windows', name));
+      // semgrep-ignore-next-line: process.resourcesPath is Electron-controlled
       candidates.push(join(process.resourcesPath, 'app.asar.unpacked', 'native', 'windows', name));
     }
     for (const candidate of candidates) {

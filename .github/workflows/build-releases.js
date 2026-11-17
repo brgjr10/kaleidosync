@@ -14,6 +14,33 @@ const LIMIT = 8;
 const INDEX_PATH = process.argv[2] || process.env.INDEX_HTML_PATH || DEFAULT_INDEX;
 const GH_TOKEN = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
 
+/**
+ * Sanitize HTML string to prevent injection - only allow safe characters
+ * This is a defense-in-depth measure for the build script writing API data to file
+ */
+function sanitizeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/[<>]/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .slice(0, 500);
+}
+
+/**
+ * Validate and sanitize release data from GitHub API
+ */
+function validateReleases(releases) {
+  if (!Array.isArray(releases)) return [];
+  return releases.slice(0, LIMIT).map(r => ({
+    html_url: sanitizeHtml(r.html_url),
+    tag_name: sanitizeHtml(r.tag_name),
+    name: sanitizeHtml(r.name),
+    published_at: sanitizeHtml(r.published_at),
+    created_at: sanitizeHtml(r.created_at)
+  })).filter(r => r.html_url && r.tag_name);
+}
+
 function fmtDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric',
@@ -40,14 +67,15 @@ async function main() {
     if (GH_TOKEN) headers.Authorization = `token ${GH_TOKEN}`;
     const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=100`, { headers });
     if (!res.ok) throw new Error(`status ${res.status}`);
-    releases = await res.json();
+    const rawReleases = await res.json();
+    releases = validateReleases(rawReleases);
   } catch (e) {
     process.stderr.write(`build-releases: fetch failed (${e.message}); leaving existing list intact\n`);
     process.exit(0);
   }
 
-  if (!Array.isArray(releases) || !releases.length) {
-    process.stderr.write('build-releases: no releases returned; leaving existing list intact\n');
+  if (!releases.length) {
+    process.stderr.write('build-releases: no valid releases returned; leaving existing list intact\n');
     process.exit(0);
   }
 

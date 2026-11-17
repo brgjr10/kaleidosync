@@ -102,6 +102,7 @@ function extractSketches() {
 // commas, template literals for shaders), so evaluate it inside a `new
 // Function` sandbox that only exposes inert globals and freezes the result.
 // Any escape attempt throws and the sketch is skipped with a diagnostic.
+// eslint-disable-next-line no-new-func -- Build-time only, trusted local input, sandboxed globals
 function parseSketchObject(objStr) {
   const inert = Object.freeze({
     Object, Array, String, Number, Boolean, Math, JSON, undefined, NaN, Infinity

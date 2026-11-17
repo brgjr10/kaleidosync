@@ -143,7 +143,9 @@ export class DarwinBackend {
     // semgrep-ignore-next-line: __dirname-relative path to bundled native helper
     found.push(join(__dirname, '..', '..', '..', 'native', 'macos', name));
     if (process.resourcesPath) {
+      // semgrep-ignore-next-line: process.resourcesPath is Electron-controlled
       found.push(join(process.resourcesPath, 'native', 'macos', name));
+      // semgrep-ignore-next-line: process.resourcesPath is Electron-controlled
       found.push(join(process.resourcesPath, 'app.asar.unpacked', 'native', 'macos', name));
     }
     for (const candidate of found) {

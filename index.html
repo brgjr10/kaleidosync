@@ -3141,12 +3141,6 @@ function selectSketch(idx) {
   renderChips();
 }
 
-function selectVariant(i) {
-  engine.selectVariant(i);
-  variantIdx = i;
-  renderer.setUniforms(engine.getCurrentUniforms());
-}
-
 function renderChips() {
   chipRow.innerHTML = '';
   const sketches = engine.getSketches();

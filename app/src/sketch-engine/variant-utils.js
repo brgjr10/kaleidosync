@@ -39,8 +39,18 @@ function toPrecision(val, precision = 5) {
   return Number(val.toFixed(precision));
 }
 
+/**
+ * Cryptographically secure random number in [0, 1)
+ * Uses Web Crypto API for visual variant generation (not security-critical but avoids CodeQL warnings)
+ */
+function secureRandom() {
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return array[0] / 0x100000000;
+}
+
 function randomNumber(min, max) {
-  return min + Math.random() * (max - min);
+  return min + secureRandom() * (max - min);
 }
 
 /**
@@ -60,9 +70,9 @@ export function generateVariant(source, temp = 0.7) {
         // Currently only colors (vec3)
         if (Array.isArray(val)) {
           result[key] = [
-            toPrecision(Math.random(), 3),
-            toPrecision(Math.random(), 3),
-            toPrecision(Math.random(), 3)
+            toPrecision(secureRandom(), 3),
+            toPrecision(secureRandom(), 3),
+            toPrecision(secureRandom(), 3)
           ];
         } else {
           result[key] = val;
