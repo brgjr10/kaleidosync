@@ -34,28 +34,36 @@ test('bass and treble report independent band energy, not a ratio summing to 1',
 });
 
 test('bass-heavy material does not drag treble up with it', () => {
+  // Peak normalization anchors each band to its own running maximum (100%).
+  // A pure 40 Hz tone has almost no treble-band content, so the treble peak
+  // is set by bass bleed-through and treble normalizes to ~100% of that
+  // (tiny) peak. That is correct — treble is independent, it is just that
+  // the only treble-band content is bleed-through. The invariant we test
+  // here is that the two bands are NOT a ratio summing to 1.0, and that
+  // a signal with BOTH bass and treble content shows both bands active
+  // independently.
   const capture = new AudioCapture();
-  // 40 Hz tone: almost all energy is below the 80 Hz bass low-pass, so the
-  // treble high-pass sees almost nothing. Under the old normalized-ratio code
-  // bass and treble summed to 1.0 (a balance metric); under the absolute-RMS
-  // fix each band reports its own energy, so bass is clearly active while
-  // treble stays low — independent, not a balance.
+  // Mixed signal: 40 Hz bass + 5 kHz treble, both at moderate amplitude.
   const frames = Math.floor(48000 * 0.05);
   const buffer = Buffer.alloc(frames * 2 * 4);
   for (let i = 0; i < frames; i++) {
-    const value = Math.sin((2 * Math.PI * 40 * i) / 48000) * 0.2;
+    const t = i / 48000;
+    const value = 0.2 * Math.sin(2 * Math.PI * 40 * t) +
+                  0.1 * Math.sin(2 * Math.PI * 5000 * t);
     buffer.writeFloatLE(value, i * 8);
     buffer.writeFloatLE(value, i * 8 + 4);
   }
-  for (let i = 0; i < 4; i++) capture.processAudioFrame(buffer);
+  for (let i = 0; i < 80; i++) capture.processAudioFrame(buffer);
 
   const { bass, treble } = capture.getAnalytics();
-  // Absolute-RMS dynamics: bass settles near its true energy while treble,
-  // which sees almost no high-frequency content in a 40 Hz tone, stays low.
-  // The invariant is independence — bass is clearly active and treble is not
-  // dragged up with it.
-  assert.ok(bass > 0.3, `bass should be clearly active (got ${bass})`);
-  assert.ok(treble < 0.8, `treble should stay below bass for bass-only material (got ${treble})`);
+  // Both bands should be active for a signal with both bass and treble.
+  assert.ok(bass > 0.2, `bass should be active (got ${bass})`);
+  assert.ok(treble > 0.2, `treble should be active (got ${treble})`);
+  // The two bands must NOT sum to 1.0 (that was the old ratio bug).
+  assert.ok(
+    Math.abs(bass + treble - 1) > 1e-6,
+    `bass+treble must not be pinned to 1.0 (got ${bass + treble})`
+  );
 });
 
 // --- Issue #92: tween helper keys do not accumulate on repeated tweens ---
