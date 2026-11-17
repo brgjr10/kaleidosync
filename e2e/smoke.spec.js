@@ -165,6 +165,8 @@ function softwareGlArgs() {
   ];
 }
 
+/* eslint-disable no-empty-pattern -- Playwright's test() requires a destructured
+ * first arg ({}, testInfo); the empty pattern carries no data. */
 test('packaged app boots, renders WebGL, and lists the sketch catalog', async ({}, testInfo) => {
   const productName = readProductName();
   const executablePath = resolveExecutable(productName);
