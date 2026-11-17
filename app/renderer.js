@@ -102,18 +102,7 @@ async function init() {
 async function loadAudioSources() {
   try {
     const sources = await window.kaleidosync.audio.enumerateDevices();
-    audioDeviceSelect.innerHTML = '<option value="">Select audio source...</option>';
-    sources.forEach(source => {
-      const option = document.createElement('option');
-      option.value = source.id;
-      option.textContent = source.name;
-      if (source.type === 'monitor') {
-        option.textContent += ' (System Monitor)';
-      } else if (source.type === 'application') {
-        option.textContent += ' (App)';
-      }
-      audioDeviceSelect.appendChild(option);
-    });
+    populateAudioSourceSelect(sources);
     
     // Prefer Spotify specifically, then any application source, then system monitor
     const spotifySource = sources.find(s => s.name.toLowerCase().includes('spotify'));
@@ -130,15 +119,73 @@ async function loadAudioSources() {
       if (monitorSource) {
         audioDeviceSelect.value = monitorSource.id;
       }
+      // No app source found yet. Spotify (and other MPRIS/PipeWire apps) is
+      // often opened AFTER Kaleidosync starts, so its PipeWire node isn't
+      // registered on the first enumeration. Retry in the background so the
+      // source list populates as soon as the app comes up.
+      retryAudioSourceDiscovery();
     }
   } catch (err) {
     console.error('[Kaleidosync] Failed to load audio sources:', err);
   }
 }
 
+// Retry enumeration on a backoff when no application source was found on the
+// first pass. This surfaces Spotify when it is opened after Kaleidosync.
+let audioSourceRetryTimer = null;
+function retryAudioSourceDiscovery() {
+  if (audioSourceRetryTimer) return;
+  let attempt = 0;
+  const maxAttempts = 10;
+  const schedule = () => {
+    if (attempt >= maxAttempts) { audioSourceRetryTimer = null; return; }
+    attempt++;
+    const delay = Math.min(2000, 500 * attempt);
+    audioSourceRetryTimer = setTimeout(async () => {
+      try {
+        const sources = await window.kaleidosync.audio.refreshDevices(maxAttempts - attempt, 500);
+        const spotifySource = sources.find(s => s.name.toLowerCase().includes('spotify'));
+        const appSource = spotifySource || sources.find(s => s.type === 'application');
+        if (appSource) {
+          audioDeviceSelect.value = appSource.id;
+          if (spotifySource) {
+            console.log('[Kaleidosync] Spotify detected on retry, auto-starting capture...');
+            setTimeout(() => startAudioCapture(), 500);
+          }
+          audioSourceRetryTimer = null;
+          return;
+        }
+        schedule();
+      } catch (err) {
+        console.warn('[Kaleidosync] Audio source retry failed:', err.message);
+        schedule();
+      }
+    }, delay);
+  };
+  schedule();
+}
+
+function populateAudioSourceSelect(sources) {
+  audioDeviceSelect.innerHTML = '<option value="">Select audio source...</option>';
+  sources.forEach(source => {
+    const option = document.createElement('option');
+    option.value = source.id;
+    option.textContent = source.name;
+    if (source.type === 'monitor') {
+      option.textContent += ' (System Monitor)';
+    } else if (source.type === 'application') {
+      option.textContent += ' (App)';
+    }
+    audioDeviceSelect.appendChild(option);
+  });
+}
+
 function applyCurrentSketch() {
   if (!sketchEngine.currentSketch) return;
   
+  // Defer the actual material mutation to the next render() call so we never
+  // race a Three.js ShaderMaterial recompilation that runs async on the GL
+  // thread (see renderer.js requestRebuild/applyCachedShader).
   renderer.setShader(sketchEngine.getCurrentShader());
   renderer.setUniforms(sketchEngine.getCurrentUniforms());
 }
@@ -204,16 +251,29 @@ async function startAudioCapture() {
 }
 
 let mprisMetadataInterval = null;
+let mprisMetadataRetryCount = 0;
+const MPRIS_MAX_RETRIES = 12;
 
 function startMprisMetadataPolling() {
   stopMprisMetadataPolling();
+  mprisMetadataRetryCount = 0;
   mprisMetadataInterval = setInterval(() => {
     window.kaleidosync.audio.getMprisMetadata().then(({ status, metadata, playing, mprisId }) => {
       if (!audioCapturing) return;
+      // Keep polling while the source is capturing. The MPRIS player may not be
+      // registered yet (Spotify just launched), or the metadata dict may not
+      // have parsed on a transient gdbus hiccup. Stopping on the first null
+      // permanently killed the now-playing title display.
       if (!metadata) {
-        if (status === 'idle') stopMprisMetadataPolling();
+        mprisMetadataRetryCount++;
+        if (mprisMetadataRetryCount >= MPRIS_MAX_RETRIES) {
+          console.warn('[Kaleidosync] MPRIS metadata not available after retries; continuing to poll');
+          mprisMetadataRetryCount = 0;
+        }
+        // Leave the previous title/artist on screen while we wait.
         return;
       }
+      mprisMetadataRetryCount = 0;
       updateMprisUI(status, metadata, playing, mprisId);
     });
   }, 1000);
@@ -228,7 +288,12 @@ function stopMprisMetadataPolling() {
 
 function cleanMetadataText(text) {
     if (!text) return '';
-    return text.replace(/^['"]+/, '').replace(/['"]+$/, '').trim();
+    const cleaned = text.replace(/^['"]+/, '').replace(/['"]+$/, '').trim();
+    // Defensive: if stripping quotes produced an empty string but the input
+    // was non-empty, the quotes were probably part of the title. Return the
+    // original trimmed text so we don't blank a legitimate track name.
+    if (!cleaned && text.trim()) return text.trim();
+    return cleaned;
   }
 
   function marquee(el) {
@@ -350,7 +415,15 @@ function animate(now = performance.now()) {
   
   // Update tweening
   if (sketchEngine) {
-    sketchEngine.updateTween(now);
+    const tweenUniforms = sketchEngine.updateTween(now);
+    if (renderer && tweenUniforms) {
+      // Push interpolated tween uniforms to the material every frame WITHOUT
+      // rebuilding shaders. This fixes the race where applyCurrentSketch()
+      // used to flash pre-tween uniform values to the GPU mid-switch.
+      renderer.onTweenUniforms = () => tweenUniforms;
+    } else if (renderer) {
+      renderer.onTweenUniforms = null;
+    }
   }
   
   // Calculate FPS

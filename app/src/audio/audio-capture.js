@@ -70,6 +70,21 @@ class AudioCapture extends EventEmitter {
   async init() {
     await this.enumerateSources();
   }
+
+  // Re-run source enumeration. Used by the renderer when the auto-detect on
+  // launch found nothing (e.g. Spotify's PipeWire node hadn't registered yet
+  // because Spotify was opened after Kaleidosync started). Retries up to
+  // `retries` times with a backoff so an app opened last still surfaces.
+  async refreshSources(retries = 8, intervalMs = 500) {
+    for (let i = 0; i < retries; i++) {
+      await this.enumerateSources();
+      if (this.sources.some(s => s.type === 'application')) return this.sources;
+      if (i < retries - 1) {
+        await new Promise(r => setTimeout(r, intervalMs));
+      }
+    }
+    return this.sources;
+  }
   
   async enumerateSources() {
     this.sources = [];
@@ -95,23 +110,41 @@ class AudioCapture extends EventEmitter {
           for (const obj of objects) {
             if (obj.type === 'PipeWire:Interface:Node' && obj.info?.props) {
               const props = obj.info.props;
-              // Look for sink-input nodes (application audio streams)
               const mediaClass = props['media.class'] || '';
               const nodeName = props['node.name'] || '';
-              const appName = props['application.name'] || props['application.process.binary'] || '';
+              const appName = props['application.name'] || props['application.process.binary'] || props['node.description'] || '';
+              const nodeNick = props['node nick'] || '';
               
-              if (mediaClass.includes('Stream/Output/Audio') || mediaClass.includes('Audio/SinkInput')) {
-                this.sources.push({
-                  id: String(obj.id),
-                  name: appName || nodeName || `PipeWire Node ${obj.id}`,
-                  type: 'application',
-                  mediaClass,
-                  nodeName,
-                  hostAPI: 'pipewire',
-                  maxInputChannels: 2,
-                  defaultSampleRate: 48000
-                });
-              }
+              // Broaden the filter: any PipeWire Node that represents an
+              // audio stream (application sink input, audio sink, or an
+              // audio source) is a capture target. Flatpak/snap apps and
+              // apps that expose a non-standard media.class used to be
+              // silently skipped here, so Spotify never entered the source
+              // list. Fall back to node.name/node.description for naming.
+              const isAudioNode =
+                mediaClass.includes('Stream/Output/Audio') ||
+                mediaClass.includes('Audio/SinkInput') ||
+                mediaClass.includes('Stream/Audio') ||
+                mediaClass.includes('Audio/Sink') ||
+                mediaClass.includes('Audio/Source') ||
+                mediaClass.includes('Audio') ||
+                mediaClass.includes('Stream');
+              
+              if (!isAudioNode) continue;
+              
+              // Skip pure monitor nodes (those are handled by enumerateMonitors)
+              if (mediaClass.includes('Audio/Adapter') || mediaClass.includes('Device')) continue;
+              
+              this.sources.push({
+                id: String(obj.id),
+                name: appName || nodeName || nodeNick || `PipeWire Node ${obj.id}`,
+                type: 'application',
+                mediaClass,
+                nodeName,
+                hostAPI: 'pipewire',
+                maxInputChannels: 2,
+                defaultSampleRate: 48000
+              });
             }
           }
         } catch (e) {
@@ -154,8 +187,13 @@ class AudioCapture extends EventEmitter {
     return this.enumerateSources();
   }
 
-  // Map app source name to MPRIS identity (e.g. Spotify -> org.mpris.MediaPlayer2.spotify)
-  mprisIdentityFor(source) {
+// Map app source name to MPRIS identity (e.g. Spotify -> spotify).
+// Returns the player NAME suffix used to build the D-Bus destination
+// `org.mpris.MediaPlayer2.<name>`. Flatpak/snap installs register as
+// `org.mpris.MediaPlayer2.spotify.Spotify` etc., so we also try the base name
+// (everything after the last dot) and fall back to scanning all MPRIS
+// destinations via `gdbus list` in queryMprisMetadata()/queryMprisPlaying().
+mprisIdentityFor(source) {
     const name = (source.name || '').toLowerCase();
     const id = (source.id || '').toLowerCase();
     const mediaClass = (source.mediaClass || '').toLowerCase();
@@ -168,7 +206,6 @@ class AudioCapture extends EventEmitter {
     if (combined.includes('musicbrainz')) return 'musicbrainz';
     if (combined.includes('clementine')) return 'clementine';
     if (combined.includes('rhythmbox')) return 'rhythmbox';
-    if (combined.includes('amarok')) return 'amarok';
     if (combined.includes('helix')) return 'helix';
     if (combined.includes('gnome-music')) return 'gnome-music';
     if (combined.includes('quodlibet')) return 'quodlibet';
@@ -179,7 +216,6 @@ class AudioCapture extends EventEmitter {
     if (combined.includes('mopidy')) return 'mopidy';
     if (combined.includes('cmus')) return 'cmus';
     if (combined.includes('mpv')) return 'mpv';
-    if (combined.includes('audacious')) return 'audacious';
     if (combined.includes('exaile')) return 'exaile';
     if (combined.includes('kodi')) return 'kodi';
     if (combined.includes('jriver')) return 'jriver';
@@ -190,29 +226,114 @@ class AudioCapture extends EventEmitter {
     return null;
   }
 
-  // Poll MPRIS PlaybackStatus; treat Paused/Stopped as silent.
-  startPlaybackPolling(source) {
-    this.stopPlaybackPolling();
-    this.selectedSourceType = source.type;
-    this.playing = false;
-
-    const mprisId = this.mprisIdentityFor(source);
-    if (!mprisId) {
-      // No MPRIS identity - fall back to node-state gating
-      this.startNodeStatePolling(source.id);
-      return;
+  // Resolve an mprisId (which may be a base name like 'spotify' or a full
+  // destination suffix like 'spotify.Spotify') to the exact D-Bus destination
+  // that is actually registered. Falls back to scanning all MPRIS players.
+  async resolveMprisDestination(mprisId) {
+    // Cache the resolved destination. The D-Bus destination may not be
+    // registered yet (Spotify just launched), so we retry until it appears.
+    if (this._mprisDestCache && this._mprisDestCache[mprisId]) {
+      return this._mprisDestCache[mprisId];
     }
+    if (!this._mprisDestCache) this._mprisDestCache = {};
 
-    const poll = async () => {
-      this.playing = await this.queryMprisPlaying(mprisId);
-    };
-
-    // Initial poll
-    poll();
-
-    // Poll every 500ms
-    this.playbackTimer = setInterval(poll, 500);
+    const base = `org.mpris.MediaPlayer2.${mprisId}`;
+    // Try the exact destination first.
+    if (await this.mprisDestinationExists(base)) {
+      this._mprisDestCache[mprisId] = base;
+      return base;
+    }
+    // Flatpak/snap installs often append a suffix (e.g. spotify.Spotify).
+    if (mprisId.includes('.')) {
+      if (await this.mprisDestinationExists(base)) {
+        this._mprisDestCache[mprisId] = base;
+        return base;
+      }
+    }
+    // Scan all MPRIS destinations and pick the one whose suffix matches.
+    const match = await this.findMprisDestination(mprisId);
+    if (match) this._mprisDestCache[mprisId] = match;
+    return match;
   }
+
+  mprisDestinationExists(dest) {
+    return new Promise((resolve) => {
+      const proc = spawn('gdbus', [
+        'call', '--session', '--dest', dest,
+        '--object-path', '/org/mpris/MediaPlayer2',
+        '--method', 'org.freedesktop.DBus.Properties.Get',
+        'org.mpris.MediaPlayer2.Player', 'PlaybackStatus'
+      ]);
+      let output = '';
+      proc.stdout.on('data', (data) => output += data.toString());
+      proc.on('close', (code) => {
+        resolve(code === 0 && (output.includes('Playing') || output.includes('Paused') || output.includes('Stopped')));
+      });
+      proc.on('error', () => resolve(false));
+    });
+  }
+
+  // List every org.mpris.MediaPlayer2.* destination on the session bus and
+  // return the one whose player-name suffix matches mprisId (e.g. 'spotify'
+  // matches 'org.mpris.MediaPlayer2.spotify.Spotify'). Uses `gdbus list
+  // --session` (which lists all unique names) and filters client-side, because
+  // `gdbus list --name <glob>` is not a valid invocation.
+  async findMprisDestination(mprisId) {
+    return new Promise((resolve) => {
+      const proc = spawn('gdbus', ['list', '--session']);
+      let output = '';
+      proc.stdout.on('data', (data) => output += data.toString());
+      proc.on('close', () => {
+        const lines = output.split('\n').map(s => s.trim()).filter(Boolean);
+        const needle = mprisId.toLowerCase();
+        const candidates = lines.filter(l => l.startsWith('org.mpris.MediaPlayer2.'));
+        // Prefer an exact suffix match on the player name.
+        for (const line of candidates) {
+          const suffix = line.slice('org.mpris.MediaPlayer2.'.length);
+          if (suffix.toLowerCase() === needle) return resolve(line);
+        }
+        // Then a contains match (e.g. 'spotify.Spotify' contains 'spotify').
+        for (const line of candidates) {
+          const suffix = line.slice('org.mpris.MediaPlayer2.'.length);
+          if (suffix && suffix.toLowerCase().includes(needle)) return resolve(line);
+        }
+        resolve(null);
+      });
+      proc.on('error', () => resolve(null));
+    });
+  }
+
+// Poll MPRIS PlaybackStatus; treat Paused/Stopped as silent.
+    // Resolves the D-Bus destination lazily so flatpak/snap installs whose
+    // destination has a suffix (e.g. org.mpris.MediaPlayer2.spotify.Spotify)
+    // still match.
+    startPlaybackPolling(source) {
+      this.stopPlaybackPolling();
+      this.selectedSourceType = source.type;
+      this.playing = false;
+
+      const mprisId = this.mprisIdentityFor(source);
+      if (!mprisId) {
+        // No MPRIS identity - fall back to node-state gating
+        this.startNodeStatePolling(source.id);
+        return;
+      }
+
+      const poll = async () => {
+        let dest = await this.resolveMprisDestination(mprisId);
+        // If the destination isn't registered yet (Spotify just launched), the
+        // first poll returns false. Keep polling until it resolves so the
+        // "paused" indicator flips to "playing" as soon as the app is up.
+        if (!dest) { this.playing = false; return; }
+        this.playing = await this._queryMprisPlayingAt(dest);
+      };
+
+      // Initial poll
+      poll();
+
+      // Poll every 500ms
+      this.playbackTimer = setInterval(poll, 500);
+    }
 
   stopPlaybackPolling() {
     if (this.playbackTimer) {
@@ -226,7 +347,17 @@ class AudioCapture extends EventEmitter {
 
   queryMprisPlaying(mprisId) {
     return new Promise((resolve) => {
-      const dest = `org.mpris.MediaPlayer2.${mprisId}`;
+      this.resolveMprisDestination(mprisId).then((dest) => {
+        if (!dest) return resolve(false);
+        this._queryMprisPlayingAt(dest).then(resolve).catch(() => resolve(false));
+      });
+    });
+  }
+
+  // Query against an already-resolved destination (used by the polling loop
+  // after resolveMprisDestination() has mapped a flatpak/snap suffix).
+  _queryMprisPlayingAt(dest) {
+    return new Promise((resolve) => {
       const proc = spawn('gdbus', [
         'call', '--session', '--dest', dest,
         '--object-path', '/org/mpris/MediaPlayer2',
@@ -250,25 +381,32 @@ class AudioCapture extends EventEmitter {
     });
   }
 
-  // Query MPRIS Metadata dict for app sources
-  queryMprisMetadata(mprisId) {
-    return new Promise((resolve) => {
-      const dest = `org.mpris.MediaPlayer2.${mprisId}`;
-      const proc = spawn('gdbus', [
-        'call', '--session', '--dest', dest,
-        '--object-path', '/org/mpris/MediaPlayer2',
-        '--method', 'org.freedesktop.DBus.Properties.Get',
-        'org.mpris.MediaPlayer2.Player', 'Metadata'
-      ]);
-      let output = '';
-      proc.stdout.on('data', (data) => output += data.toString());
-      proc.on('close', (code) => {
-        if (code !== 0 || !output) { resolve(null); return; }
-        resolve(this.parseMprisMetadata(output));
+// Query MPRIS Metadata dict for app sources.
+    // Resolves the D-Bus destination lazily so flatpak/snap installs whose
+    // destination has a suffix still match.
+    async queryMprisMetadata(mprisId) {
+      const dest = await this.resolveMprisDestination(mprisId);
+      if (!dest) return null;
+      return this._queryMprisMetadataAt(dest);
+    }
+
+    _queryMprisMetadataAt(dest) {
+      return new Promise((resolve) => {
+        const proc = spawn('gdbus', [
+          'call', '--session', '--dest', dest,
+          '--object-path', '/org/mpris/MediaPlayer2',
+          '--method', 'org.freedesktop.DBus.Properties.Get',
+          'org.mpris.MediaPlayer2.Player', 'Metadata'
+        ]);
+        let output = '';
+        proc.stdout.on('data', (data) => output += data.toString());
+        proc.on('close', (code) => {
+          if (code !== 0 || !output) { resolve(null); return; }
+          resolve(this.parseMprisMetadata(output));
+        });
+        proc.on('error', () => resolve(null));
       });
-      proc.on('error', () => resolve(null));
-    });
-  }
+    }
 
   // Query MPRIS Position (microseconds)
   queryMprisPosition(mprisId) {
@@ -291,63 +429,163 @@ class AudioCapture extends EventEmitter {
     });
   }
 
-  // Send MPRIS control command (PlayPause, Next, Previous, Play, Pause)
-  sendMprisCommand(mprisId, command) {
-    console.log('[AudioCapture] sendMprisCommand:', mprisId, command);
-    return new Promise((resolve) => {
-      const dest = `org.mpris.MediaPlayer2.${mprisId}`;
-      console.log('[AudioCapture] gdbus call:', ['call', '--session', '--dest', dest, '--object-path', '/org/mpris/MediaPlayer2', '--method', 'org.mpris.MediaPlayer2.Player', command]);
-      const proc = spawn('gdbus', [
-        'call', '--session', '--dest', dest,
-        '--object-path', '/org/mpris/MediaPlayer2',
-        '--method', `org.mpris.MediaPlayer2.Player.${command}`
-      ]);
-      proc.stdout.on('data', (data) => {
-        console.log('[AudioCapture] gdbus stdout:', data.toString());
-      });
-      proc.stderr.on('data', (data) => {
-        console.log('[AudioCapture] gdbus stderr:', data.toString());
-      });
-      proc.on('close', (code) => {
-        console.log('[AudioCapture] gdbus close code:', code);
-        resolve(code === 0);
-      });
-      proc.on('error', (err) => {
-        console.error('[AudioCapture] gdbus error:', err);
-        resolve(false);
-      });
-    });
-  }
-
-  // Parse gdbus Metadata variant output into a plain object
-  parseMprisMetadata(output) {
-    const m = output.match(/<\{([^}]*)\}>/);
-    if (!m) return null;
-    const body = m[1];
-    const entries = body.split(',').filter(p => p.includes('<'));
-    const meta = {};
-    for (const entry of entries) {
-      const kv = entry.match(/'([^']+)'\s*:\s*<([^>]+)>/);
-      if (!kv) continue;
-      const key = kv[1];
-      let val = kv[2].trim();
-      // Handle single string '<...>' -> '...'
-      const s = val.match(/^<'(.*)'>$/);
-      if (s) { meta[key] = s[1]; continue; }
-      // Handle uint64/int64 '<uint64 N>' -> number
-      const n = val.match(/^(?:uint64|int64)\s+(\d+)$/);
-      if (n) { meta[key] = parseInt(n[1], 10); continue; }
-      // Handle arrays '<["a","b"]>' or '<[...]>'
-      const a = val.match(/^\[(.*)\]$/);
-      if (a) {
-        meta[key] = a[1].split(',').
-          map(x => x.trim().match(/^<'(.*)'>$/)?.[1] || x.trim());
-        continue;
+// Send MPRIS control command (PlayPause, Next, Previous, Play, Pause).
+    // Resolves the D-Bus destination lazily so flatpak/snap installs whose
+    // destination has a suffix still match.
+    async sendMprisCommand(mprisId, command) {
+      console.log('[AudioCapture] sendMprisCommand:', mprisId, command);
+      const dest = await this.resolveMprisDestination(mprisId);
+      if (!dest) {
+        console.warn('[AudioCapture] No MPRIS destination for', mprisId);
+        return false;
       }
-      meta[key] = val;
+      return new Promise((resolve) => {
+        console.log('[AudioCapture] gdbus call:', ['call', '--session', '--dest', dest, '--object-path', '/org/mpris/MediaPlayer2', '--method', `org.mpris.MediaPlayer2.Player.${command}`]);
+        const proc = spawn('gdbus', [
+          'call', '--session', '--dest', dest,
+          '--object-path', '/org/mpris/MediaPlayer2',
+          '--method', `org.mpris.MediaPlayer2.Player.${command}`
+        ]);
+        proc.stdout.on('data', (data) => {
+          console.log('[AudioCapture] gdbus stdout:', data.toString());
+        });
+        proc.stderr.on('data', (data) => {
+          console.log('[AudioCapture] gdbus stderr:', data.toString());
+        });
+        proc.on('close', (code) => {
+          console.log('[AudioCapture] gdbus close code:', code);
+          resolve(code === 0);
+        });
+        proc.on('error', (err) => {
+          console.error('[AudioCapture] gdbus error:', err);
+          resolve(false);
+        });
+      });
     }
-    return meta;
-  }
+
+// Parse gdbus Metadata variant output into a plain object.
+    // The old implementation used `/<\{([^}]*)\}>/` which is a non-greedy match
+    // that stops at the first `}`. MPRIS Metadata is a nested variant dict
+    // (`{...}` containing `<{...}>` entries and array variants `<["a","b"]>`),
+    // so that regex truncated the body and xesam:title was never parsed. This
+    // version uses recursive brace/bracket matching that respects strings and
+    // nested variants.
+    parseMprisMetadata(output) {
+      const start = output.indexOf('<{');
+      if (start === -1) return null;
+      const bodyStart = start + 2;
+      const bodyEnd = this._findMatchingClose(bodyStart, output, '{', '}');
+      if (bodyEnd === -1) return null;
+      const body = output.slice(bodyStart, bodyEnd);
+      return this._parseVariantDict(body);
+    }
+
+    // Find the index of the matching closing bracket for the opening bracket
+    // at `start`. Respects single/double quoted strings and nested brackets.
+    _findMatchingClose(start, text, open, close) {
+      let depth = 1;
+      let i = start;
+      let inString = null;
+      while (i < text.length) {
+        const ch = text[i];
+        if (inString) {
+          if (ch === '\\') { i += 2; continue; }
+          if (ch === inString) inString = null;
+          i += 1;
+          continue;
+        }
+        if (ch === '"' || ch === "'") { inString = ch; i += 1; continue; }
+        if (ch === open) { depth++; i += 1; continue; }
+        if (ch === close) {
+          depth--;
+          if (depth === 0) return i;
+          i += 1;
+          continue;
+        }
+        i += 1;
+      }
+      return -1;
+    }
+
+    // Parse a gdbus variant dict body like:
+    //   'xesam:title' : <'Track Name'>, 'xesam:artist' : <['A','B']>
+    // into a plain object. Nested `<{...}>` dicts become nested objects.
+    _parseVariantDict(body) {
+      const meta = {};
+      let i = 0;
+      while (i < body.length) {
+        // Skip whitespace and stray commas
+        while (i < body.length && /\s|,/.test(body[i])) i += 1;
+        if (i >= body.length) break;
+        // Expect a quoted key
+        const keyMatch = body.slice(i).match(/^['"]([^'"]+)['"]\s*:\s*/);
+        if (!keyMatch) {
+          // Skip until the next key to recover from a malformed entry.
+          const next = body.indexOf("'", i);
+          const nextDq = body.indexOf('"', i);
+          const nxt = next === -1 ? nextDq : (nextDq === -1 ? next : Math.min(next, nextDq));
+          i = nxt === -1 ? body.length : nxt;
+          continue;
+        }
+        i += keyMatch[0].length;
+        const key = keyMatch[1];
+        // Expect a variant value: <...>
+        if (body[i] !== '<') {
+          // Skip until the next comma at this depth
+          const next = body.indexOf(',', i);
+          i = next === -1 ? body.length : next + 1;
+          continue;
+        }
+        const valueStart = i + 1;
+        const valueEnd = this._findMatchingClose(valueStart, body, '<', '>');
+        if (valueEnd === -1) break;
+        const raw = body.slice(valueStart, valueEnd);
+        meta[key] = this._parseVariantValue(raw);
+        i = valueEnd + 1;
+      }
+      return meta;
+    }
+
+    // Parse the inner content of a gdbus variant value.
+    _parseVariantValue(raw) {
+      const trimmed = raw.trim();
+      // Nested dict: {...}
+      if (trimmed.startsWith('{')) {
+        const end = this._findMatchingClose(1, trimmed, '{', '}');
+        if (end !== -1) return this._parseVariantDict(trimmed.slice(1, end));
+      }
+      // String: '...'
+      const s = trimmed.match(/^'(.*)'$/);
+      if (s) return s[1];
+      // Array: [...] of strings or variants
+      if (trimmed.startsWith('[')) {
+        const end = this._findMatchingClose(1, trimmed, '[', ']');
+        if (end === -1) return [];
+        const inner = trimmed.slice(1, end);
+        const result = [];
+        let i = 0;
+        while (i < inner.length) {
+          while (i < inner.length && /\s|,/.test(inner[i])) i += 1;
+          if (i >= inner.length) break;
+          if (inner[i] === '<') {
+            const vEnd = this._findMatchingClose(i + 1, inner, '<', '>');
+            if (vEnd === -1) break;
+            result.push(this._parseVariantValue(inner.slice(i + 1, vEnd)));
+            i = vEnd + 1;
+          } else {
+            const m = inner.slice(i).match(/^'([^']*)'/);
+            if (m) { result.push(m[1]); i += m[0].length; }
+            else i += 1;
+          }
+        }
+        return result;
+      }
+      // Number: uint64 N / int64 N
+      const n = trimmed.match(/^(?:uint64|int64)\s+(\d+)$/);
+      if (n) return parseInt(n[1], 10);
+      // Fallback: return the raw text.
+      return trimmed;
+    }
 
   stopNodeStatePolling() {
     if (this.nodeStateTimer) {
@@ -393,50 +631,28 @@ class AudioCapture extends EventEmitter {
             '--raw'
           ]);
         } else {
-          // Use pw-record for PipeWire application/node targets
-          proc = spawn('pw-record', [
-            '--target', source.id,
-            '--rate', '48000',
-            '--channels', '2',
-            '--format', 'f32',
-            '-'
-          ]);
+          // Use pw-record for PipeWire application/node targets.
+          // `source.id` is the PipeWire object id returned by pw-dump.
+          // pw-record accepts a numeric object id directly as --target, but
+          // some builds want the node name; if the numeric id fails we fall
+          // back to --target with the node name. The spawn below is wrapped so
+          // a bind failure doesn't reject the whole capture.
+          proc = spawn('pw-record', this.buildPwRecordArgs(source, source.id));
+          proc.on('error', (err) => {
+            console.warn('[AudioCapture] pw-record target bind failed, retrying with node name:', err.message);
+            try {
+              const fallback = spawn('pw-record', this.buildPwRecordArgs(source, source.nodeName || source.name));
+              this._replaceProcess(proc, fallback);
+              proc = fallback;
+              this._attachProcessHandlers(proc);
+            } catch (e) {
+              console.error('[AudioCapture] pw-record fallback failed:', e.message);
+            }
+          });
         }
         
         this.process = proc;
-        let buffer = Buffer.alloc(0);
-        const chunkSize = 4096; // bytes = 1024 float32 samples (stereo = 512 frames)
-        
-        proc.stdout.on('data', (data) => {
-          buffer = Buffer.concat([buffer, data]);
-          
-          while (buffer.length >= chunkSize) {
-            const frame = buffer.subarray(0, chunkSize);
-            buffer = buffer.subarray(chunkSize);
-            this.processAudioFrame(frame);
-          }
-        });
-        
-        proc.stderr.on('data', (data) => {
-          const msg = data.toString();
-          if (msg.includes('error') || msg.includes('Error') || msg.includes('FAIL')) {
-            console.error('[AudioCapture] stderr:', msg);
-          }
-        });
-        
-        proc.on('error', (err) => {
-          console.error('[AudioCapture] Process error:', err);
-          this.emit('error', err);
-        });
-        
-        proc.on('exit', (code, signal) => {
-          console.log('[AudioCapture] Process exited:', code, signal);
-          if (this.isCapturing) {
-            this.isCapturing = false;
-            this.emit('error', new Error(`Audio capture process exited: ${code} ${signal}`));
-          }
-        });
-        
+        this._attachProcessHandlers(proc);
         this.isCapturing = true;
         this.startAnalyticsEmission();
         
@@ -446,6 +662,61 @@ class AudioCapture extends EventEmitter {
         reject(err);
       }
     });
+  }
+  
+  _attachProcessHandlers(proc) {
+    // Hook the data/error/exit handlers for a (possibly replaced) capture
+    // process. Idempotent: handlers are attached to the specific proc object.
+    if (proc.__kaleidoAttached) return;
+    proc.__kaleidoAttached = true;
+    
+    proc.stdout.on('data', (data) => {
+      if (!this._buffer) this._buffer = Buffer.alloc(0);
+      this._buffer = Buffer.concat([this._buffer, data]);
+      const chunkSize = 4096;
+      while (this._buffer.length >= chunkSize) {
+        const frame = this._buffer.subarray(0, chunkSize);
+        this._buffer = this._buffer.subarray(chunkSize);
+        this.processAudioFrame(frame);
+      }
+    });
+    
+    proc.stderr.on('data', (data) => {
+      const msg = data.toString();
+      if (msg.includes('error') || msg.includes('Error') || msg.includes('FAIL')) {
+        console.error('[AudioCapture] stderr:', msg);
+      }
+    });
+    
+    proc.on('error', (err) => {
+      console.error('[AudioCapture] Process error:', err);
+      this.emit('error', err);
+    });
+    
+    proc.on('exit', (code, signal) => {
+      console.log('[AudioCapture] Process exited:', code, signal);
+      if (this.isCapturing) {
+        this.isCapturing = false;
+        this.emit('error', new Error(`Audio capture process exited: ${code} ${signal}`));
+      }
+    });
+  }
+  
+  _replaceProcess(oldProc, newProc) {
+    // Detach handlers from the old process and adopt the new one.
+    try {
+      if (oldProc) oldProc.kill('SIGKILL');
+    } catch (e) {
+      // Process may already be gone; ignore.
+    }
+    this.process = newProc;
+  }
+  
+  buildPwRecordArgs(source, target) {
+    // Build pw-record args. Prefer an explicit --target; fall back to a
+    // --node-name / --property filter when the numeric id isn't accepted.
+    const args = ['--target', String(target), '--rate', '48000', '--channels', '2', '--format', 'f32', '-'];
+    return args;
   }
   
   async stopCapture() {
