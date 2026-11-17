@@ -15,7 +15,7 @@
 //   "pid:<pid>"   one running application's audio
 //
 // ScreenCaptureKit provides audio-only capture on macOS 12.3+, and per-app
-// audio through SCContentFilter(includingApplications:). No virtual audio
+// audio through SCContentFilter(including:). No virtual audio
 // device (BlackHole, Loopback) is required.
 //
 // Build (on macOS):
@@ -79,7 +79,7 @@ private func jsonString(_ value: String) -> String {
 // Convert one SCStream audio sample buffer to interleaved float32.
 //
 // ScreenCaptureKit normally delivers 32-bit float, non-interleaved planar
-// audio. The stream layout is read through AVAudioFormat(cmFormatDescription:)
+// audio. The stream layout is read through AVAudioFormat(cmAudioFormatDescription:)
 // rather than CMAudioFormatDescriptionGetStreamLayout, which is not exposed to
 // Swift in current SDKs. Interleaved float and signed 16-bit are handled too so
 // a format change cannot silently mute the app.
@@ -89,7 +89,7 @@ private func writeSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
     guard frameCount > 0 else { return }
 
     guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer),
-          let format = AVAudioFormat(cmFormatDescription: formatDescription) else { return }
+          let format = AVAudioFormat(cmAudioFormatDescription: formatDescription) else { return }
 
     let channels = Int(format.channelCount)
     guard channels > 0 else { return }
@@ -98,11 +98,14 @@ private func writeSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
     let byteCount = CMBlockBufferGetDataLength(blockBuffer)
     guard byteCount > 0 else { return }
 
+    var lengthAtOffset: Int = 0
+    var totalLength: Int = 0
     var dataPointer: UnsafeMutablePointer<Int8>?
     let status = CMBlockBufferGetDataPointer(blockBuffer,
                                              atOffset: 0,
-                                             length: byteCount,
-                                             outDataPointer: &dataPointer)
+                                             lengthAtOffsetOut: &lengthAtOffset,
+                                             totalLengthOut: &totalLength,
+                                             dataPointerOut: &dataPointer)
     guard status == noErr, let dataPointer = dataPointer else { return }
     let raw = Data(bytes: UnsafeRawPointer(dataPointer), count: byteCount)
 
@@ -166,7 +169,7 @@ private func writeSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
         return
     }
 
-    log("unsupported audio format: \(format.commonFormat.rawValue)")
+    log("unsupported audio format: \(format.commonFormat)")
 }
 
 // MARK: - Screen capture
@@ -284,7 +287,7 @@ private func makeStream(pid: pid_t?) async throws -> SCStream {
                           userInfo: [NSLocalizedDescriptionKey: "process \(pid) not found"])
         }
         filter = SCContentFilter(display: display,
-                                 includingApplications: [application],
+                                 including: [application],
                                  exceptingWindows: [])
     } else {
         filter = SCContentFilter(display: display, excludingWindows: [])
