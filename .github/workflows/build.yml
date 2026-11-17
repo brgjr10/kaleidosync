@@ -250,6 +250,24 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
         continue-on-error: true
 
+      - name: Verify preload in macOS app bundle
+        run: |
+          APP_BUNDLE=$(find dist -name "*.app" -type d | head -1)
+          if [ -n "$APP_BUNDLE" ]; then
+            echo "App bundle: $APP_BUNDLE"
+            ls -la "$APP_BUNDLE/Contents/Resources/" | grep -E "preload|app.asar"
+            if [ -f "$APP_BUNDLE/Contents/Resources/preload.bundle.cjs" ]; then
+              echo "✓ preload.bundle.cjs found in Resources"
+            else
+              echo "✗ preload.bundle.cjs NOT found in Resources"
+              echo "Contents of Resources:"
+              ls -la "$APP_BUNDLE/Contents/Resources/"
+            fi
+          else
+            echo "No .app bundle found in dist/"
+            ls -la dist/
+          fi
+
       - name: Run packaged-app smoke test
         run: npx playwright test
         env:
