@@ -3,7 +3,11 @@
  * ES Module version for renderer process
  */
 
-import { generateVariant, buildVariantInterpolator, interpolateVariants } from './variant-utils.js';
+import { generateVariant, buildVariantInterpolator } from './variant-utils.js';
+
+// Keys the engine itself generates. A boolean uniform whose name ends in one of
+// these suffixes is already a tween helper, not a shader uniform to augment.
+const TWEEN_KEY_PATTERN = /(Tween|TweenProgress)$/;
 
 export class SketchEngine {
   constructor() {
@@ -39,7 +43,7 @@ export class SketchEngine {
     return this.catalog?.sketches || [];
   }
   
-  selectSketch(index, method = 'pointer') {
+  selectSketch(index) {
     const sketches = this.getSketches();
     if (index < 0 || index >= sketches.length) return false;
     
@@ -70,7 +74,7 @@ export class SketchEngine {
     const sketches = this.getSketches();
     const currentIndex = sketches.findIndex(s => s.id === this.currentSketch.id);
     const nextIndex = (currentIndex + 1) % sketches.length;
-    return this.selectSketch(nextIndex, 'keyboard');
+    return this.selectSketch(nextIndex);
   }
   
   selectPreviousSketch() {
@@ -78,13 +82,13 @@ export class SketchEngine {
     const sketches = this.getSketches();
     const currentIndex = sketches.findIndex(s => s.id === this.currentSketch.id);
     const prevIndex = (currentIndex - 1 + sketches.length) % sketches.length;
-    return this.selectSketch(prevIndex, 'keyboard');
+    return this.selectSketch(prevIndex);
   }
   
   selectRandomSketch() {
     const sketches = this.getSketches();
     const randomIndex = Math.floor(Math.random() * sketches.length);
-    return this.selectSketch(randomIndex, 'internal');
+    return this.selectSketch(randomIndex);
   }
   
   selectVariant(variantIndex) {
@@ -113,21 +117,24 @@ export class SketchEngine {
   }
   
   tweenTo(targetVariant, duration = 1000) {
-    // Initialize Tween/TweenProgress for boolean uniforms
+    // Initialize Tween/TweenProgress for boolean uniforms. Only consider
+    // genuine shader uniforms: skipping keys that are themselves generated
+    // tween helpers stops the set from growing (warpTween -> warpTweenTween ->
+    // ...) on every successive tween.
     for (const [key, value] of Object.entries(this.currentUniforms)) {
-      if (typeof value === 'boolean') {
-        const tweenKey = `${key}Tween`;
-        const progressKey = `${key}TweenProgress`;
-        
-        // Set up initial state: Tween = from value, TweenProgress = 0
-        this.currentUniforms[tweenKey] = value;
-        this.currentUniforms[progressKey] = 0;
-        
-        // Set target state in targetVariant
-        if (targetVariant[key] !== undefined) {
-          targetVariant[tweenKey] = targetVariant[key];
-          targetVariant[progressKey] = 1;
-        }
+      if (typeof value !== 'boolean' || TWEEN_KEY_PATTERN.test(key)) continue;
+
+      const tweenKey = `${key}Tween`;
+      const progressKey = `${key}TweenProgress`;
+
+      // Set up initial state: Tween = from value, TweenProgress = 0
+      this.currentUniforms[tweenKey] = value;
+      this.currentUniforms[progressKey] = 0;
+
+      // Set target state in targetVariant
+      if (targetVariant[key] !== undefined) {
+        targetVariant[tweenKey] = targetVariant[key];
+        targetVariant[progressKey] = 1;
       }
     }
     
@@ -148,7 +155,7 @@ export class SketchEngine {
     
     // Ensure TweenProgress is updated for bool uniforms during tween
     for (const [key, value] of Object.entries(this.currentUniforms)) {
-      if (typeof value === 'boolean') {
+      if (typeof value === 'boolean' && !TWEEN_KEY_PATTERN.test(key)) {
         const progressKey = `${key}TweenProgress`;
         if (this.currentUniforms[progressKey] !== undefined) {
           this.currentUniforms[progressKey] = progress;
@@ -167,9 +174,10 @@ export class SketchEngine {
   }
   
   augmentUniformsWithTweens() {
-    // For every boolean uniform, ensure Tween and TweenProgress exist
+    // For every boolean uniform, ensure Tween and TweenProgress exist. Ignore
+    // generated tween helpers so repeated calls cannot compound the set.
     for (const [key, value] of Object.entries(this.currentUniforms)) {
-      if (typeof value === 'boolean') {
+      if (typeof value === 'boolean' && !TWEEN_KEY_PATTERN.test(key)) {
         if (this.currentUniforms[`${key}Tween`] === undefined) {
           this.currentUniforms[`${key}Tween`] = value;
         }

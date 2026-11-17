@@ -9,8 +9,6 @@ import { KaleidoGLSL } from './src/glsl-utils.js';
 // Global state
 let renderer = null;
 let sketchEngine = null;
-let animationId = null;
-let lastFrameTime = 0;
 let fps = 0;
 let frameCount = 0;
 let fpsUpdateTime = 0;
@@ -36,24 +34,22 @@ const btnMprisPrev = document.getElementById('btn-mpris-prev');
 const btnMprisPlay = document.getElementById('btn-mpris-play');
 const btnMprisNext = document.getElementById('btn-mpris-next');
 const playbackControls = document.getElementById('playback-controls');
-const trackInfo = document.getElementById('track-info');
 const trackTitle = document.getElementById('track-title-content');
 const trackArtist = document.getElementById('track-artist-content');
 const btnHiddenMprisPrev = document.getElementById('btn-hidden-mpris-prev');
 const btnHiddenMprisPlay = document.getElementById('btn-hidden-mpris-play');
 const btnHiddenMprisNext = document.getElementById('btn-hidden-mpris-next');
 const hiddenModeControls = document.getElementById('hidden-mode-controls');
-const hiddenTrackInfo = document.getElementById('hidden-track-info');
 const hiddenTrackTitle = document.getElementById('hidden-track-title-content');
 const hiddenTrackArtist = document.getElementById('hidden-track-artist-content');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 const btnUIToggle = document.getElementById('btn-ui-toggle');
 const meterVolume = document.getElementById('meter-volume');
-  const meterVolumeText = document.getElementById('meter-volume-text');
-  const meterBass = document.getElementById('meter-bass');
-  const meterBassText = document.getElementById('meter-bass-text');
-  const meterTreble = document.getElementById('meter-treble');
-  const meterTrebleText = document.getElementById('meter-treble-text');
+const meterVolumeText = document.getElementById('meter-volume-text');
+const meterBass = document.getElementById('meter-bass');
+const meterBassText = document.getElementById('meter-bass-text');
+const meterTreble = document.getElementById('meter-treble');
+const meterTrebleText = document.getElementById('meter-treble-text');
 const debugFPS = document.getElementById('debug-fps');
 const debugSource = document.getElementById('debug-device');
 const debugRes = document.getElementById('debug-res');
@@ -69,33 +65,42 @@ let hiddenPanelPinned = false;
 // Initialize
 async function init() {
   console.log('[Kaleidosync] Initializing renderer...');
-  
+
   // Initialize sketch engine
   sketchEngine = new SketchEngine();
   await sketchEngine.loadCatalog();
   console.log('[Kaleidosync] Sketch engine loaded, catalog:', sketchEngine.getCatalog()?.count);
-  
+
   // Initialize renderer
   renderer = new Renderer(canvas);
   renderer.setGLSLUtils(KaleidoGLSL.all);
   console.log('[Kaleidosync] Renderer initialized');
-  
+
   // Load first sketch
   sketchEngine.selectSketch(0);
   updateSketchUI();
   applyCurrentSketch();
   console.log('[Kaleidosync] First sketch applied');
-  
+
   // Load audio sources
   await loadAudioSources();
-  
+
+  // Surface capture-process crashes in the UI instead of dying silently. The
+  // main process forwards AudioCapture 'error' events here; without this the
+  // user sees frozen visuals with no explanation.
+  if (window.kaleidosync.audio.onError) {
+    window.kaleidosync.audio.onError(({ message }) => {
+      console.error('[Kaleidosync] Audio capture error:', message);
+      handleCaptureFailure(message);
+    });
+  }
+
   // Setup event listeners
   setupEventListeners();
-  
+
   // Start render loop
-  lastFrameTime = performance.now();
   animate();
-  
+
   console.log('[Kaleidosync] Ready');
 }
 
@@ -114,7 +119,8 @@ async function loadAudioSources() {
         console.warn(
           '[Kaleidosync] No audio sources. Backend:',
           backend.label,
-          '-', backend.detail,
+          '-',
+          backend.detail,
           backend.hint || ''
         );
       }
@@ -123,7 +129,7 @@ async function loadAudioSources() {
     const spotifySource = sources.find(s => s.name.toLowerCase().includes('spotify'));
     const appSource = spotifySource || sources.find(s => s.type === 'application');
     if (appSource) {
-      audioDeviceSelect.value = appSource.id;
+      selectAudioSource(appSource.id, appSource.name);
       if (spotifySource) {
         console.log('[Kaleidosync] Spotify detected, auto-starting capture...');
         // Small delay to let the UI settle
@@ -132,7 +138,7 @@ async function loadAudioSources() {
     } else {
       const monitorSource = sources.find(s => s.type === 'monitor');
       if (monitorSource) {
-        audioDeviceSelect.value = monitorSource.id;
+        selectAudioSource(monitorSource.id, monitorSource.name);
       }
       // No app source found yet. Spotify (and other MPRIS/PipeWire apps) is
       // often opened AFTER Kaleidosync starts, so its PipeWire node isn't
@@ -143,6 +149,23 @@ async function loadAudioSources() {
   } catch (err) {
     console.error('[Kaleidosync] Failed to load audio sources:', err);
   }
+}
+
+// Select a source id in the dropdown, appending a matching <option> first when
+// the id came from a retry enumeration that the current option list does not
+// know about yet. Assigning select.value to an unknown id silently yields '',
+// which made the retry/auto-recovery flow dead ("Please select an audio
+// source first").
+function selectAudioSource(sourceId, label) {
+  if (!sourceId) return false;
+  if (!Array.from(audioDeviceSelect.options).some(o => o.value === sourceId)) {
+    const option = document.createElement('option');
+    option.value = sourceId;
+    option.textContent = label || sourceId;
+    audioDeviceSelect.appendChild(option);
+  }
+  audioDeviceSelect.value = sourceId;
+  return audioDeviceSelect.value === sourceId;
 }
 
 // Retry enumeration on a backoff when no application source was found on the
@@ -162,7 +185,7 @@ function retryAudioSourceDiscovery() {
         const spotifySource = sources.find(s => s.name.toLowerCase().includes('spotify'));
         const appSource = spotifySource || sources.find(s => s.type === 'application');
         if (appSource) {
-          audioDeviceSelect.value = appSource.id;
+          selectAudioSource(appSource.id, appSource.name);
           if (spotifySource) {
             console.log('[Kaleidosync] Spotify detected on retry, auto-starting capture...');
             setTimeout(() => startAudioCapture(), 500);
@@ -197,7 +220,7 @@ function populateAudioSourceSelect(sources) {
 
 function applyCurrentSketch() {
   if (!sketchEngine.currentSketch) return;
-  
+
   // Defer the actual material mutation to the next render() call so we never
   // race a Three.js ShaderMaterial recompilation that runs async on the GL
   // thread (see renderer.js requestRebuild/applyCachedShader).
@@ -207,7 +230,7 @@ function applyCurrentSketch() {
 
 function updateSketchUI() {
   if (!sketchEngine.currentSketch) return;
-  
+
   // Update sketch select
   const sketches = sketchEngine.getSketches();
   sketchSelect.innerHTML = '';
@@ -218,7 +241,7 @@ function updateSketchUI() {
     sketchSelect.appendChild(option);
   });
   sketchSelect.value = sketches.findIndex(s => s.id === sketchEngine.currentSketch.id);
-  
+
   // Update variant select
   const variants = sketchEngine.getVariantList();
   variantSelect.innerHTML = '';
@@ -231,37 +254,48 @@ function updateSketchUI() {
   variantSelect.value = sketchEngine.currentVariantIndex;
 }
 
+// Reset the capture UI after a failure (start failure or the process dying
+// mid-capture). Shared by startAudioCapture's catch and the audio:error path.
+function handleCaptureFailure(message) {
+  audioCapturing = false;
+  stopMprisMetadataPolling();
+  playbackControls.classList.add('hidden');
+  hiddenModeControls.classList.add('hidden');
+  audioDeviceSelect.classList.remove('hidden');
+  btnAudioStart.classList.remove('hidden');
+  btnAudioStop.classList.add('hidden');
+  btnAudioStart.disabled = false;
+  alert('Audio capture failed: ' + message);
+}
+
 async function startAudioCapture() {
   const sourceId = audioDeviceSelect.value;
   if (!sourceId) {
     alert('Please select an audio source first');
     return;
   }
-  
+
   try {
     btnAudioStart.classList.add('hidden');
     btnAudioStop.classList.remove('hidden');
     btnAudioStart.disabled = true;
     // While capturing, replace source selection with playback controls
     audioDeviceSelect.classList.add('hidden');
-    
+
     const result = await window.kaleidosync.audio.startCapture(sourceId);
-    
+
     // Listen for analytics updates
     window.kaleidosync.audio.onAnalyticsUpdate((data) => {
       updateAudioUI(data);
     });
-    
+
     // Poll MPRIS metadata while capturing
     startMprisMetadataPolling();
     audioCapturing = true;
     debugSource.textContent = result.source?.name || 'Unknown';
   } catch (err) {
     console.error('[Kaleidosync] Failed to start audio capture:', err);
-    alert('Failed to start audio capture: ' + err.message);
-    btnAudioStart.classList.remove('hidden');
-    btnAudioStop.classList.add('hidden');
-    btnAudioStart.disabled = false;
+    handleCaptureFailure(err.message);
   }
 }
 
@@ -302,54 +336,65 @@ function stopMprisMetadataPolling() {
 }
 
 function cleanMetadataText(text) {
-    if (!text) return '';
-    const cleaned = text.replace(/^['"]+/, '').replace(/['"]+$/, '').trim();
-    // Defensive: if stripping quotes produced an empty string but the input
-    // was non-empty, the quotes were probably part of the title. Return the
-    // original trimmed text so we don't blank a legitimate track name.
-    if (!cleaned && text.trim()) return text.trim();
-    return cleaned;
-  }
+  if (!text) return '';
+  const cleaned = text.replace(/^['"]+/, '').replace(/['"]+$/, '').trim();
+  // Defensive: if stripping quotes produced an empty string but the input
+  // was non-empty, the quotes were probably part of the title. Return the
+  // original trimmed text so we don't blank a legitimate track name.
+  if (!cleaned && text.trim()) return text.trim();
+  return cleaned;
+}
 
-  function marquee(el) {
-    const clone = el.cloneNode(true);
+// Scroll overflowing text by animating an inner wrapper. The wrapper carries
+// the text and is the only child, so the element the caller passed in keeps
+// its id; cloning the element itself duplicated that id in the DOM on every
+// metadata tick.
+function marquee(el) {
+  let inner = el.firstElementChild;
+  if (!inner || inner.getAttribute('data-marquee-inner') !== 'true') {
+    inner = document.createElement('span');
+    inner.setAttribute('data-marquee-inner', 'true');
+    inner.textContent = el.textContent;
     el.textContent = '';
-    el.appendChild(clone);
-    // If content overflows, trigger marquee animation
-    if (el.scrollWidth > el.clientWidth) {
-      el.classList.add('scrolling');
-    }
+    el.appendChild(inner);
+  } else if (inner.textContent !== el.textContent) {
+    inner.textContent = el.textContent;
+  }
+  // If content overflows, trigger marquee animation
+  if (el.scrollWidth > el.clientWidth) {
+    el.classList.add('scrolling');
+  } else {
+    el.classList.remove('scrolling');
+  }
+}
+
+function updateMprisUI(status, metadata, playing, mprisId) {
+  const isMprisApp = mprisId !== null;
+  if (!isMprisApp) {
+    playbackControls.classList.add('hidden');
+    hiddenModeControls.classList.add('hidden');
+    return;
   }
 
-  function updateMprisUI(status, metadata, playing, mprisId) {
-    const isMprisApp = mprisId !== null;
-    if (!isMprisApp) {
-      playbackControls.classList.add('hidden');
-      hiddenModeControls.classList.add('hidden');
-      return;
-    }
+  const rawTitle = metadata['xesam:title'] || metadata['mpris:title'] || '';
+  const rawArtist = (metadata['xesam:artist'] || metadata['xesam:albumArtist'] || []).join(', ');
+  const title = cleanMetadataText(rawTitle);
+  const artist = cleanMetadataText(rawArtist);
+  trackTitle.textContent = title;
+  trackArtist.textContent = artist;
 
-    const rawTitle = metadata['xesam:title'] || metadata['mpris:title'] || '';
-    const rawArtist = (metadata['xesam:artist'] || metadata['xesam:albumArtist'] || []).join(', ');
-    const rawAlbum = metadata['xesam:album'] || '';
-    const title = cleanMetadataText(rawTitle);
-    const artist = cleanMetadataText(rawArtist);
-    const album = cleanMetadataText(rawAlbum);
-    trackTitle.textContent = title;
-    trackArtist.textContent = artist;
+  marquee(trackTitle);
+  marquee(trackArtist);
 
-    marquee(trackTitle);
-    marquee(trackArtist);
-
-    // Hidden-mode panel mirror
-    if (hiddenTrackTitle) {
-      hiddenTrackTitle.textContent = title || 'No track';
-      marquee(hiddenTrackTitle);
-    }
-    if (hiddenTrackArtist) {
-      hiddenTrackArtist.textContent = artist;
-      marquee(hiddenTrackArtist);
-    }
+  // Hidden-mode panel mirror
+  if (hiddenTrackTitle) {
+    hiddenTrackTitle.textContent = title || 'No track';
+    marquee(hiddenTrackTitle);
+  }
+  if (hiddenTrackArtist) {
+    hiddenTrackArtist.textContent = artist;
+    marquee(hiddenTrackArtist);
+  }
 
   // Play/pause button state
   const isPlaying = playing && String(status || '').toLowerCase() === 'playing';
@@ -378,7 +423,7 @@ async function stopAudioCapture() {
     btnAudioStart.classList.remove('hidden');
     btnAudioStop.classList.add('hidden');
     btnAudioStart.disabled = false;
-    
+
     // Reset meters
     meterVolume.style.width = '0%';
     meterVolumeText.textContent = '0%';
@@ -396,17 +441,16 @@ function updateAudioUI(data) {
   const bass = Math.round((data.bass || 0) * 100);
   const treble = Math.round((data.treble || 0) * 100);
   const bpm = Math.round(data.bpm || 0);
-  const beat = data.beat || 0;
-  
+
   currentBPM = bpm;
-  
+
   meterVolume.style.width = `${Math.min(100, volume)}%`;
   meterVolumeText.textContent = `${volume}%`;
   meterBass.style.width = `${Math.min(100, bass)}%`;
   meterBassText.textContent = `${bass}%`;
   meterTreble.style.width = `${Math.min(100, treble)}%`;
   meterTrebleText.textContent = `${treble}%`;
-  
+
   // Update renderer uniforms with audio data
   if (renderer) {
     renderer.setExternalUniforms({
@@ -426,8 +470,8 @@ function updateAudioUI(data) {
 }
 
 function animate(now = performance.now()) {
-  animationId = requestAnimationFrame(animate);
-  
+  requestAnimationFrame(animate);
+
   // Update tweening
   if (sketchEngine) {
     const tweenUniforms = sketchEngine.updateTween(now);
@@ -440,7 +484,7 @@ function animate(now = performance.now()) {
       renderer.onTweenUniforms = null;
     }
   }
-  
+
   // Calculate FPS
   frameCount++;
   if (now - fpsUpdateTime >= 1000) {
@@ -452,13 +496,11 @@ function animate(now = performance.now()) {
     debugDPR.textContent = window.devicePixelRatio.toFixed(2);
     debugBPM.textContent = currentBPM;
   }
-  
+
   // Render
   if (renderer) {
     renderer.render(now);
   }
-  
-  lastFrameTime = now;
 }
 
 function setupEventListeners() {
@@ -469,47 +511,47 @@ function setupEventListeners() {
     updateSketchUI();
     applyCurrentSketch();
   });
-  
+
   variantSelect.addEventListener('change', (e) => {
     const index = parseInt(e.target.value);
     sketchEngine.selectVariant(index);
     applyCurrentSketch();
   });
-  
+
   btnPrev.addEventListener('click', () => {
     sketchEngine.selectPreviousSketch();
     updateSketchUI();
     applyCurrentSketch();
   });
-  
+
   btnNext.addEventListener('click', () => {
     sketchEngine.selectNextSketch();
     updateSketchUI();
     applyCurrentSketch();
   });
-  
+
   btnRandom.addEventListener('click', () => {
     sketchEngine.selectRandomSketch();
     updateSketchUI();
     applyCurrentSketch();
   });
-  
+
   btnMagic.addEventListener('click', () => {
     sketchEngine.magicTween(500, 0.7);
   });
-  
+
   btnPrevVariant.addEventListener('click', () => {
     sketchEngine.selectPreviousVariant();
     variantSelect.value = sketchEngine.currentVariantIndex;
     applyCurrentSketch();
   });
-  
+
   btnNextVariant.addEventListener('click', () => {
     sketchEngine.selectNextVariant();
     variantSelect.value = sketchEngine.currentVariantIndex;
     applyCurrentSketch();
   });
-  
+
   btnAudioStart.addEventListener('click', startAudioCapture);
   btnAudioStop.addEventListener('click', stopAudioCapture);
 
@@ -527,7 +569,9 @@ function setupEventListeners() {
     window.kaleidosync.audio.sendMprisCommand('Previous');
   });
 
-  // Keyboard shortcuts for playback
+  // Keyboard shortcuts for playback (Ctrl/Cmd + arrows/space). These MUST NOT
+  // also reach the plain-navigation handler below, so that handler bails on
+  // modifier keys.
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
     if (e.ctrlKey || e.metaKey) {
@@ -547,7 +591,7 @@ function setupEventListeners() {
       }
     }
   });
-  
+
   btnFullscreen.addEventListener('click', () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
@@ -555,7 +599,7 @@ function setupEventListeners() {
       document.exitFullscreen();
     }
   });
-  
+
   // Hidden-mode panel helpers
   function showHiddenPanel(autoHide = true) {
     if (!hiddenModeControls) return;
@@ -613,11 +657,13 @@ function setupEventListeners() {
       window.kaleidosync.audio.sendMprisCommand('Previous');
     });
   }
-  
-  // Keyboard shortcuts
+
+  // Keyboard shortcuts (plain navigation). Ctrl/Cmd is reserved for the MPRIS
+  // transport handler above, so ignore modified keystrokes here.
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-    
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
     switch (e.key) {
       case 'ArrowLeft':
         sketchEngine.selectPreviousSketch();
@@ -659,7 +705,7 @@ function setupEventListeners() {
         break;
     }
   });
-  
+
   // Handle resize
   window.addEventListener('resize', () => {
     if (renderer) {

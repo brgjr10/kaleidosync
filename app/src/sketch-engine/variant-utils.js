@@ -31,7 +31,7 @@ function getMax(key, n, temp = 0.7) {
   return n + getTemp(key, temp) * n;
 }
 
-function getStep(key, n) {
+function getStep(key, _n) {
   return isIntegerKey(key) ? 1 : 0;
 }
 
@@ -51,10 +51,10 @@ function randomNumber(min, max) {
  */
 export function generateVariant(source, temp = 0.7) {
   const result = {};
-  
+
   for (const [key, value] of Object.entries(source)) {
     const val = value;
-    
+
     switch (typeof val) {
       case 'object':
         // Currently only colors (vec3)
@@ -87,7 +87,7 @@ export function generateVariant(source, temp = 0.7) {
         result[key] = val;
     }
   }
-  
+
   return result;
 }
 
@@ -100,17 +100,17 @@ export function generateVariant(source, temp = 0.7) {
 export function buildVariantInterpolator(from, to) {
   const fromKeys = Object.keys(from);
   const toKeys = Object.keys(to);
-  
+
   if (fromKeys.length !== toKeys.length || !fromKeys.every((key, i) => key === toKeys[i])) {
     console.warn('[VariantUtils] TWEEN ERROR - Both variants must have the same keys.');
   }
-  
+
   const interpolators = {};
-  
+
   for (const key of fromKeys) {
     const fromVal = from[key];
     const toVal = to[key];
-    
+
     if (Array.isArray(fromVal) && Array.isArray(toVal)) {
       // vec2/vec3 interpolation
       const interpolatorsArr = fromVal.map((v, i) => interpolateNumber(v, toVal[i]));
@@ -127,7 +127,7 @@ export function buildVariantInterpolator(from, to) {
       interpolators[key] = (t) => t >= 1 ? toVal : fromVal;
     }
   }
-  
+
   // Add Tween and TweenProgress interpolators for bool uniforms
   // These are used by the shader for smooth boolean transitions
   for (const key of fromKeys) {
@@ -146,7 +146,7 @@ export function buildVariantInterpolator(from, to) {
       }
     }
   }
-  
+
   return (progress) => {
     const result = {};
     for (const key of fromKeys) {

@@ -17,14 +17,11 @@ import * as fs from 'fs';
 // DSP (volume / stream / bass / treble / BPM) behave identically on Linux,
 // Windows and macOS.
 
-export const PCM_FORMAT = {
-  sampleRate: 48000,
-  channels: 2,
-  format: 'f32le',
-  frameSizeBytes: 4096
-};
-
 const PATH_DELIMITER = process.platform === 'win32' ? ';' : ':';
+
+// Command names are fixed literals owned by the backends (pw-dump, pactl,
+// ffmpeg, powershell, ...), never user input. spawn() without a shell and
+// with an argument array is the safe way to invoke them.
 
 export function hasBinary(name) {
   return new Promise((resolve) => {
@@ -209,12 +206,6 @@ export function stopProcess(proc) {
   } catch {
     try { proc.kill('SIGKILL'); } catch { /* already gone */ }
   }
-}
-
-export function describeError(err) {
-  if (!err) return 'unknown error';
-  if (err.code === 'ENOENT') return `command not found: ${err.path || err.message}`;
-  return err.message || String(err);
 }
 
 // Electron patches fs so paths inside app.asar appear readable, but a binary

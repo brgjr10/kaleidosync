@@ -258,7 +258,11 @@ class AudioCapture extends EventEmitter {
 
     proc.on('error', (err) => {
       console.error('[AudioCapture] Process error:', err.message);
-      this.emit('error', err);
+      // Guard: a bare `this.emit('error', ...)` throws when no listener is
+      // attached, which previously crashed the main process (issue #88).
+      if (this.listenerCount('error') > 0) {
+        this.emit('error', err);
+      }
     });
 
     proc.on('exit', (code, signal) => {
@@ -270,12 +274,13 @@ class AudioCapture extends EventEmitter {
       if (this.isCapturing) {
         this.isCapturing = false;
         const hint = this.backend.status?.hint || '';
-        this.emit(
-          'error',
-          new Error(
-            `Audio capture process exited (${code ?? 'signal ' + signal}). ${hint}`.trim()
-          )
+        const err = new Error(
+          `Audio capture process exited (${code ?? 'signal ' + signal}). ${hint}`.trim()
         );
+        // Guard against an unhandled 'error' event (issue #88).
+        if (this.listenerCount('error') > 0) {
+          this.emit('error', err);
+        }
       }
     });
   }
@@ -423,13 +428,12 @@ class AudioCapture extends EventEmitter {
     const bassRms = Math.sqrt(bassTotal / frameCount);
     const trebleRms = Math.sqrt(trebleTotal / frameCount);
 
-    // Proportional normalization: each band's share of total energy
-    const total = bassRms + trebleRms;
-    const bass = total > 0 ? bassRms / total : 0;
-    const treble = total > 0 ? trebleRms / total : 0;
-
-    this.state.bass = bass;
-    this.state.treble = treble;
+    // Absolute band energy: each band's own RMS, so bass and treble react to
+    // how much energy is actually present in that band. (Previously these were
+    // normalized by their sum, which made them a balance metric that always
+    // summed to 1.0 and pinned to ~1.0/~0.0 on bass-heavy material.)
+    this.state.bass = bassRms;
+    this.state.treble = trebleRms;
 
     // BPM / beat detection: track bass energy envelope
     this.updateBpm(bassRms);
@@ -487,8 +491,8 @@ class AudioCapture extends EventEmitter {
 
     this.state.level = volume;
     this.state.tapped = true;
-    this.state.bass = bass;
-    this.state.treble = treble;
+    this.state.bass = bassRms;
+    this.state.treble = trebleRms;
   }
 
   sampleVolume(windowSize) {

@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import * as fs from 'fs';
 import { AudioCapture } from './src/audio/audio-capture.js';
-import { generateVariant, interpolateVariants } from './src/sketch-engine/variant-utils.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -70,16 +69,36 @@ function createWindow() {
   });
 }
 
+function sendAudioError(err) {
+  const message = err && err.message ? err.message : String(err);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('audio:error', { message });
+  }
+}
+
 async function initializeAudioCapture() {
   if (audioCapture) return;
-  audioCapture = new AudioCapture();
-  await audioCapture.init();
-  
+  // Construct and initialize off to the side: if init() throws, the failed
+  // instance is never assigned, so a later call can retry instead of
+  // short-circuiting on a permanently poisoned singleton.
+  const capture = new AudioCapture();
+  await capture.init();
+  audioCapture = capture;
+
   // Forward analytics events from AudioCapture to renderer
   audioCapture.on('analytics', (data) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('audio:analytics-update', data);
     }
+  });
+
+  // AudioCapture extends EventEmitter and emits 'error' when the capture
+  // subprocess dies. An 'error' event with no listener is thrown as an
+  // uncaught exception in Node, which would take down the main process.
+  // Always register a handler right after a successful init.
+  audioCapture.on('error', (err) => {
+    console.error('[Main] Audio capture error:', err && err.message ? err.message : err);
+    sendAudioError(err);
   });
 }
 
@@ -104,10 +123,18 @@ app.whenReady().then(async () => {
   createWindow();
 
   // Initialize audio capture early
-  await initializeAudioCapture();
+  try {
+    await initializeAudioCapture();
+  } catch (err) {
+    // A failed startup init must not abort app startup; the renderer shows the
+    // error and every IPC handler retries initialization on demand.
+    console.error('[Main] Audio capture init failed:', err && err.message ? err.message : err);
+    sendAudioError(err);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    initializeAudioCapture().catch((err) => sendAudioError(err));
   });
 });
 
@@ -203,19 +230,7 @@ ipcMain.handle('sketches:get-catalog', async () => {
   return JSON.parse(fs.readFileSync(catalogPath, 'utf-8'));
 });
 
-ipcMain.handle('sketches:generate-variant', async (event, variant, temp) => {
-  return generateVariant(variant, temp);
-});
-
-ipcMain.handle('sketches:interpolate-variants', async (event, from, to, progress) => {
-  return interpolateVariants(from, to, progress);
-});
-
 // App lifecycle
 ipcMain.handle('app:get-version', async () => {
   return app.getVersion();
-});
-
-ipcMain.handle('app:quit', async () => {
-  app.quit();
 });

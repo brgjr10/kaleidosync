@@ -2,7 +2,7 @@
   "name": "kaleidosync-desktop",
   "version": "2.0.0",
   "description": "Standalone desktop app for Kaleidosync visuals synced to system audio",
-  "author": "Brodie <brodie@example.com>",
+  "author": "Brodie",
   "homepage": "https://github.com/brgjr10/kaleidosync",
   "type": "module",
   "main": "app/main.js",
@@ -10,6 +10,7 @@
     "dev": "electron .",
     "build": "electron-builder",
     "build:native": "bash native/windows/build.sh",
+    "build:bundles": "node build-renderer.js && node build-preload.js",
     "extract": "node extractor.js",
     "lint": "eslint . --ext .js,.ts",
     "typecheck": "tsc --noEmit",
@@ -37,7 +38,6 @@
     "files": [
       "app/**/*",
       "assets/**/*",
-      "src/**/*",
       "native/**/*",
       "node_modules/**/*"
     ],

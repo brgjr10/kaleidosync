@@ -29,7 +29,12 @@ export class DarwinBackend {
   constructor() {
     this.id = 'darwin';
     this.label = 'ScreenCaptureKit';
-    this.supportsMetadata = true;
+    // Metadata/transport controls require the Swift helper: getMetadata() and
+    // sendCommand() both need an AppleScript-mappable source (Spotify/Music),
+    // which only the helper's source list provides. In the ffmpeg fallback
+    // every source is an avfoundation input device, so this stays false and
+    // the renderer hides the playback controls instead of showing dead ones.
+    this.supportsMetadata = false;
     this.supportsProcessAudio = false;
     this.status = { available: false, detail: '', hint: '' };
 
@@ -86,6 +91,9 @@ export class DarwinBackend {
       const check = await runProcess(this.helper, ['--check'], { timeoutMs: 20000 });
       const info = parseJsonLoose(check.stdout) || {};
       if (info.ok) {
+        // The helper can list sources and mediate playback, so now-playing
+        // metadata and transport controls are only real when this succeeds.
+        this.supportsMetadata = true;
         this.status = {
           available: true,
           detail: 'ScreenCaptureKit (system + per-app audio)',
