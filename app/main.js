@@ -27,14 +27,17 @@ function createWindow() {
     const candidates = [
       join(process.resourcesPath, 'preload.bundle.cjs'),
       join(process.resourcesPath, 'app', 'preload.bundle.cjs'),
-      join(path.dirname(process.execPath), '..', 'Resources', 'preload.bundle.cjs'),
-      join(path.dirname(process.execPath), 'preload.bundle.cjs'),
+      join(dirname(process.execPath), '..', 'Resources', 'preload.bundle.cjs'),
+      join(dirname(process.execPath), 'preload.bundle.cjs'),
     ];
     preloadPath = candidates.find(fs.existsSync);
     console.log('[Main] Preload candidates:', candidates);
     console.log('[Main] Selected preload:', preloadPath);
     if (!preloadPath) {
-      console.error('[Main] ERROR: preload.bundle.cjs not found in any candidate location');
+      console.error('[Main] ERROR: preload.bundle.cjs not found externally, trying asar path');
+      // Fallback: try loading from inside the asar (Electron 20+ supports this)
+      preloadPath = join(__dirname, 'preload.bundle.cjs');
+      console.log('[Main] Fallback preload path:', preloadPath);
     }
   } else {
     preloadPath = join(__dirname, 'preload.bundle.cjs');
