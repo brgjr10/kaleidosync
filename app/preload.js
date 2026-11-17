@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('kaleidosync', {
+console.log('[Preload] Preload script running, Electron version:', process.versions.electron);
+
+try {
+  contextBridge.exposeInMainWorld('kaleidosync', {
     audio: {
       enumerateDevices: () => ipcRenderer.invoke('audio:enumerate-devices'),
       startCapture: (deviceId) => ipcRenderer.invoke('audio:start-capture', deviceId),
@@ -28,3 +31,8 @@ contextBridge.exposeInMainWorld('kaleidosync', {
     getCatalog: () => ipcRenderer.invoke('sketches:get-catalog')
   }
 });
+
+console.log('[Preload] Successfully exposed kaleidosync API');
+} catch (err) {
+  console.error('[Preload] Failed to expose API:', err);
+}
