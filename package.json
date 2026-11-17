@@ -13,13 +13,15 @@
     "extract": "node extractor.js",
     "lint": "eslint . --ext .js,.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/"
+    "test": "node --test test/",
+    "test:smoke": "playwright test"
   },
   "dependencies": {
     "d3-interpolate": "^3.0.1",
     "three": "^0.165.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3",
     "esbuild": "^0.28.2",

@@ -12,6 +12,9 @@ on:
 env:
   NODE_VERSION: '20'
   ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
+  # The smoke test drives the packaged Electron via Playwright's _electron, so
+  # Playwright's own browser binaries are never needed — skip the ~300 MB download.
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
@@ -143,6 +146,20 @@ jobs:
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
         continue-on-error: true
 
+      - name: Run packaged-app smoke test
+        run: npx playwright test
+        env:
+          ELECTRON_ENABLE_LOGGING: '1'
+
+      - name: Upload smoke-test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshots-${{ runner.os }}
+          path: test-results/**
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -217,6 +234,20 @@ jobs:
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
           CSC_IDENTITY_AUTO_DISCOVERY: false
         continue-on-error: true
+
+      - name: Run packaged-app smoke test
+        run: npx playwright test
+        env:
+          ELECTRON_ENABLE_LOGGING: '1'
+
+      - name: Upload smoke-test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshots-${{ runner.os }}
+          path: test-results/**
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
