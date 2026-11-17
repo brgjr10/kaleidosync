@@ -435,7 +435,7 @@ class AudioCapture extends EventEmitter {
     // are small (bass ~0.02-0.08, treble ~0.001-0.03 on typical music), so
     // without gain the meters barely move and treble reads as 0.
     const BASS_GAIN = 8;
-    const TREBLE_GAIN = 40;
+    const TREBLE_GAIN = 80;
     this.state.bass = Math.min(1, bassRms * BASS_GAIN);
     this.state.treble = Math.min(1, trebleRms * TREBLE_GAIN);
 
