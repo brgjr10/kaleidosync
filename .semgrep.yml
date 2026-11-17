@@ -1,0 +1,25 @@
+# Semgrep configuration for Kaleidosync desktop app.
+# Extends the community "auto" ruleset but excludes generated/bundled files
+# and trusted backend paths that produce false positives.
+#
+# CodeQL (separate job) still scans all source files including backends.
+
+extends: auto
+
+exclude:
+  # Generated bundles — third-party code, not hand-written
+  - "app/renderer.bundle.js"
+  - "app/renderer.bundle.js.map"
+  - "app/preload.bundle.cjs"
+  - "app/preload.bundle.cjs.map"
+  # Demo site (not part of the Electron app)
+  - "index.html"
+  # Build/release script — write target is a known, fixed path
+  - ".github/workflows/build-releases.js"
+  # Audio backends: spawn() and join() calls here target trusted system
+  # binaries and paths (ffmpeg, swiftc, PATH dirs, tmpdir). These are
+  # intentional, not user-controlled. CodeQL still scans these files.
+  - "app/src/audio/backends/shared.js"
+  - "app/src/audio/backends/linux.js"
+  - "app/src/audio/backends/windows.js"
+  - "app/src/audio/backends/darwin.js"

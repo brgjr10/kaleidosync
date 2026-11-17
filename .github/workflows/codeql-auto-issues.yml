@@ -63,7 +63,7 @@ jobs:
         if: always()
         run: |
           python -m pip install --quiet --disable-pip-version-check semgrep
-          semgrep scan --config auto --sarif --output results/semgrep.sarif || true
+          semgrep scan --config .semgrep.yml --sarif --output results/semgrep.sarif || true
 
       - name: Upload Semgrep SARIF to code scanning
         if: always() && hashFiles('results/semgrep.sarif') != ''
