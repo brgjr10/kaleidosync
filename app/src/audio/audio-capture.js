@@ -428,12 +428,16 @@ class AudioCapture extends EventEmitter {
     const bassRms = Math.sqrt(bassTotal / frameCount);
     const trebleRms = Math.sqrt(trebleTotal / frameCount);
 
-    // Absolute band energy: each band's own RMS, so bass and treble react to
-    // how much energy is actually present in that band. (Previously these were
-    // normalized by their sum, which made them a balance metric that always
-    // summed to 1.0 and pinned to ~1.0/~0.0 on bass-heavy material.)
-    this.state.bass = bassRms;
-    this.state.treble = trebleRms;
+    // Absolute band energy with per-band gain. Each band's RMS is scaled into
+    // the visible 0..1 meter range independently — bass and treble react to
+    // how much energy is actually present in their band, but they are NOT
+    // normalized against each other (they no longer sum to 1.0). Raw RMS values
+    // are small (bass ~0.02-0.08, treble ~0.001-0.03 on typical music), so
+    // without gain the meters barely move and treble reads as 0.
+    const BASS_GAIN = 8;
+    const TREBLE_GAIN = 40;
+    this.state.bass = Math.min(1, bassRms * BASS_GAIN);
+    this.state.treble = Math.min(1, trebleRms * TREBLE_GAIN);
 
     // BPM / beat detection: track bass energy envelope
     this.updateBpm(bassRms);
@@ -452,6 +456,7 @@ class AudioCapture extends EventEmitter {
         ' volume=' + volume.toFixed(3) +
         ' bpm=' + this.bpm.toFixed(1) +
         ' bass=' + this.state.bass.toFixed(3) +
+        ' treble=' + this.state.treble.toFixed(3) +
         ' beat=' + this.state.beat
       );
     }
@@ -491,8 +496,8 @@ class AudioCapture extends EventEmitter {
 
     this.state.level = volume;
     this.state.tapped = true;
-    this.state.bass = bassRms;
-    this.state.treble = trebleRms;
+    this.state.bass = Math.min(1, bassRms * BASS_GAIN);
+    this.state.treble = Math.min(1, trebleRms * TREBLE_GAIN);
   }
 
   sampleVolume(windowSize) {
