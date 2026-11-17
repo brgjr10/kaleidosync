@@ -406,7 +406,7 @@ class AudioCapture extends EventEmitter {
     // Frequency band analysis (bass/treble split) — real-time per-frame filtering
     const sampleRate = this.config.sampleRate || 48000;
     const lpAlpha = Math.exp(-2 * Math.PI * 80 / sampleRate);
-    const hpAlpha = Math.exp(-2 * Math.PI * 300 / sampleRate);
+    const hpAlpha = Math.exp(-2 * Math.PI * 200 / sampleRate);
     let bassTotal = 0;
     let trebleTotal = 0;
     for (let i = 0; i < frameCount; i++) {
@@ -418,7 +418,7 @@ class AudioCapture extends EventEmitter {
       this.bassLpState =
         this.bassLpState + (1 - lpAlpha) * (cleanMono - this.bassLpState);
       bassTotal += this.bassLpState * this.bassLpState;
-      // Treble: high-pass at 300Hz (captures vocals/melody/presence;
+      // Treble: high-pass at 200Hz (captures vocals/melody/presence;
       // 2kHz left too much of the music spectrum in a dead gap)
       const hpOutput =
         hpAlpha * (this.trebleHpState + cleanMono - this.trebleHpInput1);
