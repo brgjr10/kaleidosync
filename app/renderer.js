@@ -9,8 +9,6 @@ import { KaleidoGLSL } from './src/glsl-utils.js';
 // Global state
 let renderer = null;
 let sketchEngine = null;
-let animationId = null;
-let lastFrameTime = 0;
 let fps = 0;
 let frameCount = 0;
 let fpsUpdateTime = 0;
@@ -36,14 +34,12 @@ const btnMprisPrev = document.getElementById('btn-mpris-prev');
 const btnMprisPlay = document.getElementById('btn-mpris-play');
 const btnMprisNext = document.getElementById('btn-mpris-next');
 const playbackControls = document.getElementById('playback-controls');
-const trackInfo = document.getElementById('track-info');
 const trackTitle = document.getElementById('track-title-content');
 const trackArtist = document.getElementById('track-artist-content');
 const btnHiddenMprisPrev = document.getElementById('btn-hidden-mpris-prev');
 const btnHiddenMprisPlay = document.getElementById('btn-hidden-mpris-play');
 const btnHiddenMprisNext = document.getElementById('btn-hidden-mpris-next');
 const hiddenModeControls = document.getElementById('hidden-mode-controls');
-const hiddenTrackInfo = document.getElementById('hidden-track-info');
 const hiddenTrackTitle = document.getElementById('hidden-track-title-content');
 const hiddenTrackArtist = document.getElementById('hidden-track-artist-content');
 const btnFullscreen = document.getElementById('btn-fullscreen');
@@ -93,7 +89,6 @@ async function init() {
   setupEventListeners();
   
   // Start render loop
-  lastFrameTime = performance.now();
   animate();
   
   console.log('[Kaleidosync] Ready');
@@ -313,6 +308,7 @@ function cleanMetadataText(text) {
 
   function marquee(el) {
     const clone = el.cloneNode(true);
+    clone.id = '';
     el.textContent = '';
     el.appendChild(clone);
     // If content overflows, trigger marquee animation
@@ -331,10 +327,8 @@ function cleanMetadataText(text) {
 
     const rawTitle = metadata['xesam:title'] || metadata['mpris:title'] || '';
     const rawArtist = (metadata['xesam:artist'] || metadata['xesam:albumArtist'] || []).join(', ');
-    const rawAlbum = metadata['xesam:album'] || '';
     const title = cleanMetadataText(rawTitle);
     const artist = cleanMetadataText(rawArtist);
-    const album = cleanMetadataText(rawAlbum);
     trackTitle.textContent = title;
     trackArtist.textContent = artist;
 
@@ -396,7 +390,6 @@ function updateAudioUI(data) {
   const bass = Math.round((data.bass || 0) * 100);
   const treble = Math.round((data.treble || 0) * 100);
   const bpm = Math.round(data.bpm || 0);
-  const beat = data.beat || 0;
   
   currentBPM = bpm;
   
@@ -426,7 +419,7 @@ function updateAudioUI(data) {
 }
 
 function animate(now = performance.now()) {
-  animationId = requestAnimationFrame(animate);
+  requestAnimationFrame(animate);
   
   // Update tweening
   if (sketchEngine) {
@@ -457,8 +450,6 @@ function animate(now = performance.now()) {
   if (renderer) {
     renderer.render(now);
   }
-  
-  lastFrameTime = now;
 }
 
 function setupEventListeners() {
@@ -617,6 +608,7 @@ function setupEventListeners() {
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.ctrlKey || e.metaKey) return;
     
     switch (e.key) {
       case 'ArrowLeft':

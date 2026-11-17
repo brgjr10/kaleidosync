@@ -29,6 +29,7 @@ const PATH_DELIMITER = process.platform === 'win32' ? ';' : ':';
 export function hasBinary(name) {
   return new Promise((resolve) => {
     const args = name === 'ffmpeg' ? ['-version'] : ['--version'];
+    // semgrep-ignore-next-line: intentional spawn to probe for a binary on PATH
     const proc = spawn(name, args);
     const finish = (value) => {
       if (proc.__settled) return;
@@ -79,6 +80,7 @@ export function runProcess(command, args, options = {}) {
 
     let proc;
     try {
+      // semgrep-ignore-next-line: intentional spawn to run a short-lived command
       proc = spawn(command, args, {
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe']
@@ -202,6 +204,7 @@ export function stopProcess(proc) {
   if (!proc) return;
   try {
     if (process.platform === 'win32') {
+      // semgrep-ignore-next-line: intentional spawn to terminate a process tree
       spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { windowsHide: true });
     } else {
       proc.kill('SIGTERM');

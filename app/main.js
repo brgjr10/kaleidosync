@@ -72,15 +72,23 @@ function createWindow() {
 
 async function initializeAudioCapture() {
   if (audioCapture) return;
-  audioCapture = new AudioCapture();
-  await audioCapture.init();
-  
-  // Forward analytics events from AudioCapture to renderer
-  audioCapture.on('analytics', (data) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('audio:analytics-update', data);
-    }
-  });
+  try {
+    audioCapture = new AudioCapture();
+    await audioCapture.init();
+
+    audioCapture.on('error', (err) => {
+      console.error('[AudioCapture] error:', err.message);
+    });
+
+    audioCapture.on('analytics', (data) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('audio:analytics-update', data);
+      }
+    });
+  } catch (err) {
+    audioCapture = null;
+    console.error('[Main] Audio capture initialization failed:', err.message);
+  }
 }
 
 app.whenReady().then(async () => {

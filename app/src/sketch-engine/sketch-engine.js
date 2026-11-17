@@ -3,7 +3,7 @@
  * ES Module version for renderer process
  */
 
-import { generateVariant, buildVariantInterpolator, interpolateVariants } from './variant-utils.js';
+import { generateVariant, buildVariantInterpolator } from './variant-utils.js';
 
 export class SketchEngine {
   constructor() {
@@ -39,7 +39,7 @@ export class SketchEngine {
     return this.catalog?.sketches || [];
   }
   
-  selectSketch(index, method = 'pointer') {
+  selectSketch(index, _method = 'pointer') {
     const sketches = this.getSketches();
     if (index < 0 || index >= sketches.length) return false;
     

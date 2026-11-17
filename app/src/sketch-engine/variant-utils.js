@@ -31,7 +31,7 @@ function getMax(key, n, temp = 0.7) {
   return n + getTemp(key, temp) * n;
 }
 
-function getStep(key, n) {
+function getStep(key, _n) {
   return isIntegerKey(key) ? 1 : 0;
 }
 

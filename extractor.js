@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-const REFERENCE_PATH = '/tmp/kilo/kaleidosync-docker/node_modules/@wearesage/vue/src/stores/sketches.ts';
+const REFERENCE_PATH = process.env.KALEIDOSYNC_REFERENCE_PATH || path.join(process.cwd(), 'node_modules', '@wearesage', 'vue', 'src', 'stores', 'sketches.ts');
 const OUTPUT_PATH = path.join(process.cwd(), 'assets', 'sketches.json');
 
 function extractSketches() {
@@ -34,7 +34,6 @@ function extractSketches() {
   
   for (let i = 0; i < arrayStr.length; i++) {
     const char = arrayStr[i];
-    const prevChar = arrayStr[i - 1];
     
     if (inString) {
       if (escaped) {
