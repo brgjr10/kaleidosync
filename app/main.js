@@ -26,6 +26,12 @@ function createWindow() {
     ? join(process.resourcesPath, 'preload.bundle.cjs')
     : join(__dirname, 'preload.bundle.cjs');
   
+  console.log('[Main] Preload path:', preloadPath);
+  console.log('[Main] Preload exists:', fs.existsSync(preloadPath));
+  console.log('[Main] resourcesPath:', process.resourcesPath);
+  console.log('[Main] execPath:', process.execPath);
+  console.log('[Main] isPackaged:', app.isPackaged);
+  
   mainWindow = new BrowserWindow({
     width: Math.min(1600, width),
     height: Math.min(900, height),
