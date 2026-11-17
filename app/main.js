@@ -223,7 +223,7 @@ ipcMain.handle('audio:mpris-command', async (event, command) => {
 
 // IPC handlers for sketches
 ipcMain.handle('sketches:get-catalog', async () => {
-  const catalogPath = join(__dirname, '..', 'assets', 'sketches.json');
+  const catalogPath = join(__dirname, 'assets', 'sketches.json');
   return JSON.parse(fs.readFileSync(catalogPath, 'utf-8'));
 });
 
