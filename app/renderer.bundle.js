@@ -20025,7 +20025,7 @@ ${functionSection}`;
     if (isIntegerKey(key)) return 12;
     return n + getTemp(key, temp) * n;
   }
-  function getStep(key, n) {
+  function getStep(key, _n) {
     return isIntegerKey(key) ? 1 : 0;
   }
   function toPrecision(val, precision = 5) {
@@ -20117,6 +20117,7 @@ ${functionSection}`;
   }
 
   // app/src/sketch-engine/sketch-engine.js
+  var TWEEN_KEY_PATTERN = /(Tween|TweenProgress)$/;
   var SketchEngine = class {
     constructor() {
       this.catalog = null;
@@ -20146,7 +20147,7 @@ ${functionSection}`;
     getSketches() {
       return this.catalog?.sketches || [];
     }
-    selectSketch(index, method = "pointer") {
+    selectSketch(index) {
       const sketches = this.getSketches();
       if (index < 0 || index >= sketches.length) return false;
       const sketch = sketches[index];
@@ -20171,19 +20172,19 @@ ${functionSection}`;
       const sketches = this.getSketches();
       const currentIndex = sketches.findIndex((s) => s.id === this.currentSketch.id);
       const nextIndex = (currentIndex + 1) % sketches.length;
-      return this.selectSketch(nextIndex, "keyboard");
+      return this.selectSketch(nextIndex);
     }
     selectPreviousSketch() {
       if (!this.currentSketch) return false;
       const sketches = this.getSketches();
       const currentIndex = sketches.findIndex((s) => s.id === this.currentSketch.id);
       const prevIndex = (currentIndex - 1 + sketches.length) % sketches.length;
-      return this.selectSketch(prevIndex, "keyboard");
+      return this.selectSketch(prevIndex);
     }
     selectRandomSketch() {
       const sketches = this.getSketches();
       const randomIndex = Math.floor(Math.random() * sketches.length);
-      return this.selectSketch(randomIndex, "internal");
+      return this.selectSketch(randomIndex);
     }
     selectVariant(variantIndex) {
       if (!this.currentSketch) return false;
@@ -20208,15 +20209,14 @@ ${functionSection}`;
     }
     tweenTo(targetVariant, duration = 1e3) {
       for (const [key, value] of Object.entries(this.currentUniforms)) {
-        if (typeof value === "boolean") {
-          const tweenKey = `${key}Tween`;
-          const progressKey = `${key}TweenProgress`;
-          this.currentUniforms[tweenKey] = value;
-          this.currentUniforms[progressKey] = 0;
-          if (targetVariant[key] !== void 0) {
-            targetVariant[tweenKey] = targetVariant[key];
-            targetVariant[progressKey] = 1;
-          }
+        if (typeof value !== "boolean" || TWEEN_KEY_PATTERN.test(key)) continue;
+        const tweenKey = `${key}Tween`;
+        const progressKey = `${key}TweenProgress`;
+        this.currentUniforms[tweenKey] = value;
+        this.currentUniforms[progressKey] = 0;
+        if (targetVariant[key] !== void 0) {
+          targetVariant[tweenKey] = targetVariant[key];
+          targetVariant[progressKey] = 1;
         }
       }
       this.tweenInterpolator = buildVariantInterpolator(this.currentUniforms, targetVariant);
@@ -20231,7 +20231,7 @@ ${functionSection}`;
       const nextUniforms = this.tweenInterpolator(progress);
       this.currentUniforms = nextUniforms;
       for (const [key, value] of Object.entries(this.currentUniforms)) {
-        if (typeof value === "boolean") {
+        if (typeof value === "boolean" && !TWEEN_KEY_PATTERN.test(key)) {
           const progressKey = `${key}TweenProgress`;
           if (this.currentUniforms[progressKey] !== void 0) {
             this.currentUniforms[progressKey] = progress;
@@ -20246,7 +20246,7 @@ ${functionSection}`;
     }
     augmentUniformsWithTweens() {
       for (const [key, value] of Object.entries(this.currentUniforms)) {
-        if (typeof value === "boolean") {
+        if (typeof value === "boolean" && !TWEEN_KEY_PATTERN.test(key)) {
           if (this.currentUniforms[`${key}Tween`] === void 0) {
             this.currentUniforms[`${key}Tween`] = value;
           }
@@ -20470,8 +20470,6 @@ vec2 k_uv() {
   // app/renderer.js
   var renderer = null;
   var sketchEngine = null;
-  var animationId = null;
-  var lastFrameTime = 0;
   var fps = 0;
   var frameCount = 0;
   var fpsUpdateTime = 0;
@@ -20493,14 +20491,12 @@ vec2 k_uv() {
   var btnMprisPlay = document.getElementById("btn-mpris-play");
   var btnMprisNext = document.getElementById("btn-mpris-next");
   var playbackControls = document.getElementById("playback-controls");
-  var trackInfo = document.getElementById("track-info");
   var trackTitle = document.getElementById("track-title-content");
   var trackArtist = document.getElementById("track-artist-content");
   var btnHiddenMprisPrev = document.getElementById("btn-hidden-mpris-prev");
   var btnHiddenMprisPlay = document.getElementById("btn-hidden-mpris-play");
   var btnHiddenMprisNext = document.getElementById("btn-hidden-mpris-next");
   var hiddenModeControls = document.getElementById("hidden-mode-controls");
-  var hiddenTrackInfo = document.getElementById("hidden-track-info");
   var hiddenTrackTitle = document.getElementById("hidden-track-title-content");
   var hiddenTrackArtist = document.getElementById("hidden-track-artist-content");
   var btnFullscreen = document.getElementById("btn-fullscreen");
@@ -20534,8 +20530,13 @@ vec2 k_uv() {
     applyCurrentSketch();
     console.log("[Kaleidosync] First sketch applied");
     await loadAudioSources();
+    if (window.kaleidosync.audio.onError) {
+      window.kaleidosync.audio.onError(({ message }) => {
+        console.error("[Kaleidosync] Audio capture error:", message);
+        handleCaptureFailure(message);
+      });
+    }
     setupEventListeners();
-    lastFrameTime = performance.now();
     animate();
     console.log("[Kaleidosync] Ready");
   }
@@ -20558,7 +20559,7 @@ vec2 k_uv() {
       const spotifySource = sources.find((s) => s.name.toLowerCase().includes("spotify"));
       const appSource = spotifySource || sources.find((s) => s.type === "application");
       if (appSource) {
-        audioDeviceSelect.value = appSource.id;
+        selectAudioSource(appSource.id, appSource.name);
         if (spotifySource) {
           console.log("[Kaleidosync] Spotify detected, auto-starting capture...");
           setTimeout(() => startAudioCapture(), 500);
@@ -20566,13 +20567,24 @@ vec2 k_uv() {
       } else {
         const monitorSource = sources.find((s) => s.type === "monitor");
         if (monitorSource) {
-          audioDeviceSelect.value = monitorSource.id;
+          selectAudioSource(monitorSource.id, monitorSource.name);
         }
         retryAudioSourceDiscovery();
       }
     } catch (err) {
       console.error("[Kaleidosync] Failed to load audio sources:", err);
     }
+  }
+  function selectAudioSource(sourceId, label) {
+    if (!sourceId) return false;
+    if (!Array.from(audioDeviceSelect.options).some((o) => o.value === sourceId)) {
+      const option = document.createElement("option");
+      option.value = sourceId;
+      option.textContent = label || sourceId;
+      audioDeviceSelect.appendChild(option);
+    }
+    audioDeviceSelect.value = sourceId;
+    return audioDeviceSelect.value === sourceId;
   }
   var audioSourceRetryTimer = null;
   function retryAudioSourceDiscovery() {
@@ -20592,7 +20604,7 @@ vec2 k_uv() {
           const spotifySource = sources.find((s) => s.name.toLowerCase().includes("spotify"));
           const appSource = spotifySource || sources.find((s) => s.type === "application");
           if (appSource) {
-            audioDeviceSelect.value = appSource.id;
+            selectAudioSource(appSource.id, appSource.name);
             if (spotifySource) {
               console.log("[Kaleidosync] Spotify detected on retry, auto-starting capture...");
               setTimeout(() => startAudioCapture(), 500);
@@ -20649,6 +20661,17 @@ vec2 k_uv() {
     });
     variantSelect.value = sketchEngine.currentVariantIndex;
   }
+  function handleCaptureFailure(message) {
+    audioCapturing = false;
+    stopMprisMetadataPolling();
+    playbackControls.classList.add("hidden");
+    hiddenModeControls.classList.add("hidden");
+    audioDeviceSelect.classList.remove("hidden");
+    btnAudioStart.classList.remove("hidden");
+    btnAudioStop.classList.add("hidden");
+    btnAudioStart.disabled = false;
+    alert("Audio capture failed: " + message);
+  }
   async function startAudioCapture() {
     const sourceId = audioDeviceSelect.value;
     if (!sourceId) {
@@ -20669,10 +20692,7 @@ vec2 k_uv() {
       debugSource.textContent = result.source?.name || "Unknown";
     } catch (err) {
       console.error("[Kaleidosync] Failed to start audio capture:", err);
-      alert("Failed to start audio capture: " + err.message);
-      btnAudioStart.classList.remove("hidden");
-      btnAudioStop.classList.add("hidden");
-      btnAudioStart.disabled = false;
+      handleCaptureFailure(err.message);
     }
   }
   var mprisMetadataInterval = null;
@@ -20710,11 +20730,20 @@ vec2 k_uv() {
     return cleaned;
   }
   function marquee(el) {
-    const clone = el.cloneNode(true);
-    el.textContent = "";
-    el.appendChild(clone);
+    let inner = el.firstElementChild;
+    if (!inner || inner.getAttribute("data-marquee-inner") !== "true") {
+      inner = document.createElement("span");
+      inner.setAttribute("data-marquee-inner", "true");
+      inner.textContent = el.textContent;
+      el.textContent = "";
+      el.appendChild(inner);
+    } else if (inner.textContent !== el.textContent) {
+      inner.textContent = el.textContent;
+    }
     if (el.scrollWidth > el.clientWidth) {
       el.classList.add("scrolling");
+    } else {
+      el.classList.remove("scrolling");
     }
   }
   function updateMprisUI(status, metadata, playing, mprisId) {
@@ -20726,10 +20755,8 @@ vec2 k_uv() {
     }
     const rawTitle = metadata["xesam:title"] || metadata["mpris:title"] || "";
     const rawArtist = (metadata["xesam:artist"] || metadata["xesam:albumArtist"] || []).join(", ");
-    const rawAlbum = metadata["xesam:album"] || "";
     const title = cleanMetadataText(rawTitle);
     const artist = cleanMetadataText(rawArtist);
-    const album = cleanMetadataText(rawAlbum);
     trackTitle.textContent = title;
     trackArtist.textContent = artist;
     marquee(trackTitle);
@@ -20742,7 +20769,7 @@ vec2 k_uv() {
       hiddenTrackArtist.textContent = artist;
       marquee(hiddenTrackArtist);
     }
-    const isPlaying = playing && status === "playing";
+    const isPlaying = playing && String(status || "").toLowerCase() === "playing";
     btnMprisPlay.textContent = isPlaying ? "\u23F8" : "\u25B6";
     btnMprisPlay.title = isPlaying ? "Pause (Ctrl+Space)" : "Play (Ctrl+Space)";
     if (btnHiddenMprisPlay) btnHiddenMprisPlay.textContent = isPlaying ? "\u23F8" : "\u25B6";
@@ -20779,7 +20806,6 @@ vec2 k_uv() {
     const bass = Math.round((data.bass || 0) * 100);
     const treble = Math.round((data.treble || 0) * 100);
     const bpm = Math.round(data.bpm || 0);
-    const beat = data.beat || 0;
     currentBPM = bpm;
     meterVolume.style.width = `${Math.min(100, volume)}%`;
     meterVolumeText.textContent = `${volume}%`;
@@ -20805,7 +20831,7 @@ vec2 k_uv() {
     }
   }
   function animate(now = performance.now()) {
-    animationId = requestAnimationFrame(animate);
+    requestAnimationFrame(animate);
     if (sketchEngine) {
       const tweenUniforms = sketchEngine.updateTween(now);
       if (renderer && tweenUniforms) {
@@ -20827,7 +20853,6 @@ vec2 k_uv() {
     if (renderer) {
       renderer.render(now);
     }
-    lastFrameTime = now;
   }
   function setupEventListeners() {
     sketchSelect.addEventListener("change", (e) => {
@@ -20971,6 +20996,7 @@ vec2 k_uv() {
     }
     document.addEventListener("keydown", (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       switch (e.key) {
         case "ArrowLeft":
           sketchEngine.selectPreviousSketch();

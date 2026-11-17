@@ -64,6 +64,8 @@ class AudioCapture extends EventEmitter {
     this.trebleHpState = 0;
     this.trebleHpInput1 = 0;
     this.trebleHpAlpha = 0;
+    this.bassPeak = 0;
+    this.treblePeak = 0;
 
     // Frequency analysis buffer - accumulate frames for adequate sample size
     this.freqBuffer = [];
@@ -258,7 +260,11 @@ class AudioCapture extends EventEmitter {
 
     proc.on('error', (err) => {
       console.error('[AudioCapture] Process error:', err.message);
-      this.emit('error', err);
+      // Guard: a bare `this.emit('error', ...)` throws when no listener is
+      // attached, which previously crashed the main process (issue #88).
+      if (this.listenerCount('error') > 0) {
+        this.emit('error', err);
+      }
     });
 
     proc.on('exit', (code, signal) => {
@@ -270,12 +276,13 @@ class AudioCapture extends EventEmitter {
       if (this.isCapturing) {
         this.isCapturing = false;
         const hint = this.backend.status?.hint || '';
-        this.emit(
-          'error',
-          new Error(
-            `Audio capture process exited (${code ?? 'signal ' + signal}). ${hint}`.trim()
-          )
+        const err = new Error(
+          `Audio capture process exited (${code ?? 'signal ' + signal}). ${hint}`.trim()
         );
+        // Guard against an unhandled 'error' event (issue #88).
+        if (this.listenerCount('error') > 0) {
+          this.emit('error', err);
+        }
       }
     });
   }
@@ -401,7 +408,7 @@ class AudioCapture extends EventEmitter {
     // Frequency band analysis (bass/treble split) — real-time per-frame filtering
     const sampleRate = this.config.sampleRate || 48000;
     const lpAlpha = Math.exp(-2 * Math.PI * 80 / sampleRate);
-    const hpAlpha = Math.exp(-2 * Math.PI * 2000 / sampleRate);
+    const hpAlpha = Math.exp(-2 * Math.PI * 80 / sampleRate);
     let bassTotal = 0;
     let trebleTotal = 0;
     for (let i = 0; i < frameCount; i++) {
@@ -423,13 +430,22 @@ class AudioCapture extends EventEmitter {
     const bassRms = Math.sqrt(bassTotal / frameCount);
     const trebleRms = Math.sqrt(trebleTotal / frameCount);
 
-    // Proportional normalization: each band's share of total energy
-    const total = bassRms + trebleRms;
-    const bass = total > 0 ? bassRms / total : 0;
-    const treble = total > 0 ? trebleRms / total : 0;
-
-    this.state.bass = bass;
-    this.state.treble = treble;
+    // Peak-normalize each band independently. The original code divided each
+    // band by (bassRms + trebleRms), making them a balance metric that always
+    // summed to 1.0 — so bass was always near the top and treble near zero.
+    // Fixed-gain scaling doesn't work either: treble energy varies 10x
+    // (0.002-0.023) so any gain that shows peaks either pegs or shows nothing
+    // at the average. Instead, each band is anchored to its own running peak
+    // (max = 1.0 = 100%). A slow decay lets the peak adapt to changing music.
+    const BAND_PEAK_DECAY = 0.999;
+    const BAND_FLOOR = 0.001;
+    this.bassPeak = Math.max(bassRms, this.bassPeak * BAND_PEAK_DECAY);
+    this.treblePeak = Math.max(trebleRms, this.treblePeak * BAND_PEAK_DECAY);
+    const bassLevel = Math.min(1, bassRms / Math.max(this.bassPeak, BAND_FLOOR));
+    const trebleLevel = Math.min(1, trebleRms / Math.max(this.treblePeak, BAND_FLOOR));
+    // Light smoothing to reduce frame-to-frame jitter without lag.
+    this.state.bass = this.state.bass * 0.6 + bassLevel * 0.4;
+    this.state.treble = this.state.treble * 0.6 + trebleLevel * 0.4;
 
     // BPM / beat detection: track bass energy envelope
     this.updateBpm(bassRms);
@@ -448,6 +464,7 @@ class AudioCapture extends EventEmitter {
         ' volume=' + volume.toFixed(3) +
         ' bpm=' + this.bpm.toFixed(1) +
         ' bass=' + this.state.bass.toFixed(3) +
+        ' treble=' + this.state.treble.toFixed(3) +
         ' beat=' + this.state.beat
       );
     }
@@ -487,8 +504,6 @@ class AudioCapture extends EventEmitter {
 
     this.state.level = volume;
     this.state.tapped = true;
-    this.state.bass = bass;
-    this.state.treble = treble;
   }
 
   sampleVolume(windowSize) {
@@ -537,6 +552,10 @@ class AudioCapture extends EventEmitter {
     this.bassLpState = 0;
     this.trebleHpState = 0;
     this.trebleHpInput1 = 0;
+    this.bassPeak = 0;
+    this.treblePeak = 0;
+    this.trebleHp2State = 0;
+    this.trebleHp2Input1 = 0;
     this.bpm = 0;
     this.lastBeatTime = 0;
     this.lastBeatEnergy = 0;
