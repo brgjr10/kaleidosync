@@ -35,3 +35,4 @@ try {
 } catch (err) {
   console.error("[Preload] Failed to expose API:", err);
 }
+//# sourceMappingURL=preload.bundle.cjs.map

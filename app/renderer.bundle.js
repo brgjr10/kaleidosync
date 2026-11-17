@@ -20522,13 +20522,17 @@ vec2 k_uv() {
     sketchEngine = new SketchEngine();
     await sketchEngine.loadCatalog();
     console.log("[Kaleidosync] Sketch engine loaded, catalog:", sketchEngine.getCatalog()?.count);
-    renderer = new Renderer(canvas);
-    renderer.setGLSLUtils(KaleidoGLSL.all);
-    console.log("[Kaleidosync] Renderer initialized");
     sketchEngine.selectSketch(0);
     updateSketchUI();
-    applyCurrentSketch();
-    console.log("[Kaleidosync] First sketch applied");
+    console.log("[Kaleidosync] First sketch selected, UI updated");
+    try {
+      renderer = new Renderer(canvas);
+      renderer.setGLSLUtils(KaleidoGLSL.all);
+      applyCurrentSketch();
+      console.log("[Kaleidosync] Renderer initialized");
+    } catch (err) {
+      console.error("[Kaleidosync] Renderer initialization failed:", err);
+    }
     await loadAudioSources();
     if (window.kaleidosync.audio.onError) {
       window.kaleidosync.audio.onError(({ message }) => {
