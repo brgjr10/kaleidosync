@@ -22,7 +22,9 @@ function sanitizeHtml(str) {
   if (typeof str !== 'string') return '';
   return str
     .replace(/[<>]/g, '')
-    .replace(/javascript:/gi, '')
+    .replace(/["']/g, '')
+    .replace(/(?:java|vb)script:/gi, '')
+    .replace(/data:/gi, '')
     .replace(/on\w+\s*=/gi, '')
     .slice(0, 500);
 }
