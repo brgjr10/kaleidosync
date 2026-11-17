@@ -24,24 +24,26 @@ function createWindow() {
   
   let preloadPath;
   if (app.isPackaged) {
-    const candidates = [
-      join(process.resourcesPath, 'preload.bundle.cjs'),
-      join(process.resourcesPath, 'app', 'preload.bundle.cjs'),
-      join(dirname(process.execPath), '..', 'Resources', 'preload.bundle.cjs'),
-      join(dirname(process.execPath), 'preload.bundle.cjs'),
-    ];
-    preloadPath = candidates.find(fs.existsSync);
-    console.log('[Main] Preload candidates:', candidates);
-    console.log('[Main] Selected preload:', preloadPath);
-    console.log('[Main] process.resourcesPath:', process.resourcesPath);
-    console.log('[Main] process.execPath:', process.execPath);
-    console.log('[Main] __dirname:', __dirname);
-    if (!preloadPath) {
-      console.error('[Main] ERROR: preload.bundle.cjs not found externally, trying asar path');
-      // Fallback: try loading from inside the asar (Electron 20+ supports this)
-      preloadPath = join(__dirname, 'preload.bundle.cjs');
-      console.log('[Main] Fallback preload path:', preloadPath);
+    // Prefer asar path (works on all platforms with Electron 20+)
+    // __dirname = app.asar/app/ in packaged app
+    const asarPath = join(__dirname, 'preload.bundle.cjs');
+    
+    // Also check external resources as fallback
+    const externalPath = join(process.resourcesPath, 'preload.bundle.cjs');
+    
+    // Try asar path first (more reliable across platforms)
+    if (fs.existsSync(asarPath)) {
+      preloadPath = asarPath;
+      console.log('[Main] Using asar preload path:', preloadPath);
+    } else if (fs.existsSync(externalPath)) {
+      preloadPath = externalPath;
+      console.log('[Main] Using external preload path:', preloadPath);
+    } else {
+      console.error('[Main] ERROR: preload.bundle.cjs not found');
+      preloadPath = asarPath; // Try anyway
     }
+    console.log('[Main] __dirname:', __dirname);
+    console.log('[Main] process.resourcesPath:', process.resourcesPath);
   } else {
     preloadPath = join(__dirname, 'preload.bundle.cjs');
   }

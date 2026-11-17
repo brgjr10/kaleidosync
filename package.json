@@ -47,12 +47,6 @@
     "asarUnpack": [
       "native/**/*"
     ],
-    "extraResources": [
-      {
-        "from": "app/preload.bundle.cjs",
-        "to": "preload.bundle.cjs"
-      }
-    ],
     "linux": {
       "target": [
         "AppImage",
