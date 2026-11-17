@@ -84,7 +84,7 @@ jobs:
 
             const LABEL = 'automated-scan';
             const MARKER = '<!-- kaleidosync-autoscan -->';
-            const REPO = `${context.repo.owner}/${context.repo.repo}`;
+            const sha = (str) => crypto.createHash('sha1').update(str).digest('hex').slice(0, 16);
 
             // ---- 1. Flatten every SARIF result into a finding ----------------
             const resultsDir = 'results';
@@ -95,7 +95,18 @@ jobs:
               core.info(`No SARIF files in ${resultsDir}: ${e.message}`);
             }
 
-            const sha = (s) => crypto.createHash('sha1').update(s).digest('hex').slice(0, 16);
+            // Ignore generated/vendor/demo files that are not actionable source.
+            const ignoreUri = (uri) =>
+              uri === 'index.html' ||
+              uri === 'app/renderer.bundle.js' ||
+              uri === 'app/renderer.bundle.js.map' ||
+              uri === 'app/preload.bundle.cjs' ||
+              uri === 'app/preload.bundle.cjs.map' ||
+              uri === '.github/workflows/build-releases.js' ||
+              /^app\/audio\/backends\//.test(uri) ||
+              /^node_modules\//.test(uri) ||
+              /^dist\//.test(uri);
+
             const findings = [];
             for (const file of files) {
               let sarif;
@@ -115,16 +126,12 @@ jobs:
                   const rule = rules[ruleId] || {};
                   const loc = (res.locations && res.locations[0] && res.locations[0].physicalLocation) || {};
                   const uri = (loc.artifactLocation && loc.artifactLocation.uri) || '(unknown file)';
+                  if (ignoreUri(uri)) continue;
                   const startLine = (loc.region && loc.region.startLine) || 0;
                   const msg = (res.message && res.message.text) || rule.shortDescription || ruleId;
-                  const level = res.level || rule.defaultConfiguration || 'warning';
-                  // CodeQL emits a stable per-finding hash; Semgrep may not, so
-                  // fall back to a content hash. This is what prevents dupes.
-                  const fp =
-                    (res.partialFingerprints &&
-                      (res.partialFingerprints.primaryLocationLineHash ||
-                        Object.values(res.partialFingerprints)[0])) ||
-                    sha(`${ruleId}|${uri}|${startLine}|${msg}`);
+                  const level = res.level || (rule.defaultConfiguration && rule.defaultConfiguration.level) || 'warning';
+                  // Stable content fingerprint so reruns update the same issue.
+                  const fp = sha(`${ruleId}|${uri}|${startLine}|${msg}`);
                   const helpUri = rule.helpUri || (res.rule && res.rule.helpUri) || '';
                   findings.push({ ruleId, uri, startLine, msg, level, fp, helpUri, file });
                 }
@@ -134,26 +141,29 @@ jobs:
             // De-dupe within this run by fingerprint.
             const byFp = new Map();
             for (const f of findings) if (!byFp.has(f.fp)) byFp.set(f.fp, f);
-            core.info(`Scan produced ${byFp.size} unique finding(s) across ${files.length} SARIF file(s).`);
+            core.info(`Scan produced ${byFp.size} unique actionable finding(s) across ${files.length} SARIF file(s).`);
 
-            // ---- 2. Load existing open auto-scan issues ----------------------
-            const open = await github.paginate(github.rest.issues.listForRepo, {
+            // ---- 2. Load existing auto-scan issues (open and closed) ---------
+            const existingIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: LABEL,
-              state: 'open',
+              state: 'all',
               per_page: 100
             });
 
-            const markerRe = /<!--\s*kaleidosync-autoscan:fp=([0-9a-f]+)\s*-->/;
-            const byFpIssue = new Map();
-            for (const issue of open) {
+            const markerRe = /<!--\s*kaleidosync-autoscan:fp=([0-9a-fA-F0-9:_-]+)\s*-->/;
+            const byFpIssues = new Map();
+            for (const issue of existingIssues) {
               if (issue.pull_request) continue;
               const m = (issue.body || '').match(markerRe);
-              if (m) byFpIssue.set(m[1], issue);
+              if (!m) continue;
+              const fp = m[1];
+              if (!byFpIssues.has(fp)) byFpIssues.set(fp, []);
+              byFpIssues.get(fp).push(issue);
             }
 
-            // ---- 3. Create or update -----------------------------------------
+            // ---- 3. Create or update (keep one open issue per fingerprint) ---
             let created = 0, updated = 0, closed = 0;
             const short = (u) => u.replace(/^.*?:\/\//, '');
             for (const [fp, f] of byFp) {
@@ -174,40 +184,54 @@ jobs:
                 `_Source: \`${f.file}\` · updated ${new Date().toISOString()}_`
               ].join('\n');
 
-              const existing = byFpIssue.get(fp);
-              if (existing) {
-                if ((existing.body || '') !== body) {
+              const matches = (byFpIssues.get(fp) || []).slice().sort((a,b) => a.number - b.number);
+              const openMatches = matches.filter(i => i.state === 'open');
+              const keeper = openMatches[openMatches.length - 1] || matches[matches.length - 1];
+              if (keeper) {
+                if (keeper.state !== 'open') {
                   await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: existing.number,
-                    body
+                    owner: context.repo.owner, repo: context.repo.repo,
+                    issue_number: keeper.number, state: 'open', body, title
+                  });
+                  updated++;
+                } else if ((keeper.body || '') !== body || keeper.title !== title) {
+                  await github.rest.issues.update({
+                    owner: context.repo.owner, repo: context.repo.repo,
+                    issue_number: keeper.number, body, title
                   });
                   updated++;
                 }
-                byFpIssue.delete(fp);
+                for (const dup of openMatches) {
+                  if (dup.number === keeper.number) continue;
+                  await github.rest.issues.update({
+                    owner: context.repo.owner, repo: context.repo.repo,
+                    issue_number: dup.number, state: 'closed', state_reason: 'not_planned'
+                  });
+                  closed++;
+                }
               } else {
                 await github.rest.issues.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title,
-                  body,
-                  labels: [LABEL]
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  title, body, labels: [LABEL]
                 });
                 created++;
               }
+              byFpIssues.delete(fp);
             }
 
-            // ---- 4. Auto-close issues whose finding is gone -------------------
-            for (const [, issue] of byFpIssue) {
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                state: 'closed',
-                state_reason: 'completed'
-              });
-              closed++;
+            // ---- 4. Close issues for findings that are gone or ignored -------
+            for (const [, issues] of byFpIssues) {
+              for (const issue of issues) {
+                if (issue.state !== 'open') continue;
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                  state_reason: 'completed'
+                });
+                closed++;
+              }
             }
 
             core.summary
