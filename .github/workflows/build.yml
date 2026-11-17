@@ -215,6 +215,9 @@ jobs:
             -framework AVFAudio \
             native/macos/kaleidosync-sckit.swift
 
+      - name: Bundle renderer and preload
+        run: npm run bundle
+
       - name: Verify sketch catalog
         run: |
           node -e "

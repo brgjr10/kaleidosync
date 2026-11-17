@@ -8,18 +8,15 @@ extends: auto
 
 exclude:
   # Generated bundles — third-party code, not hand-written
-  - "app/renderer.bundle.js"
-  - "app/renderer.bundle.js.map"
-  - "app/preload.bundle.cjs"
-  - "app/preload.bundle.cjs.map"
+  - "**/renderer.bundle.js"
+  - "**/renderer.bundle.js.map"
+  - "**/preload.bundle.cjs"
+  - "**/preload.bundle.cjs.map"
   # Demo site (not part of the Electron app)
-  - "index.html"
+  - "**/index.html"
   # Build/release script — write target is a known, fixed path
-  - ".github/workflows/build-releases.js"
+  - "**/build-releases.js"
   # Audio backends: spawn() and join() calls here target trusted system
   # binaries and paths (ffmpeg, swiftc, PATH dirs, tmpdir). These are
   # intentional, not user-controlled. CodeQL still scans these files.
-  - "app/src/audio/backends/shared.js"
-  - "app/src/audio/backends/linux.js"
-  - "app/src/audio/backends/windows.js"
-  - "app/src/audio/backends/darwin.js"
+  - "**/audio/backends/*.js"
