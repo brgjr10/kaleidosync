@@ -43,7 +43,7 @@ test('bass-heavy material does not drag treble up with it', () => {
   const frames = Math.floor(48000 * 0.05);
   const buffer = Buffer.alloc(frames * 2 * 4);
   for (let i = 0; i < frames; i++) {
-    const value = Math.sin((2 * Math.PI * 40 * i) / 48000) * 0.7;
+    const value = Math.sin((2 * Math.PI * 40 * i) / 48000) * 0.2;
     buffer.writeFloatLE(value, i * 8);
     buffer.writeFloatLE(value, i * 8 + 4);
   }

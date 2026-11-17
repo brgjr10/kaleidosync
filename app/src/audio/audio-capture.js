@@ -547,6 +547,8 @@ class AudioCapture extends EventEmitter {
     this.bassLpState = 0;
     this.trebleHpState = 0;
     this.trebleHpInput1 = 0;
+    this.trebleHp2State = 0;
+    this.trebleHp2Input1 = 0;
     this.bpm = 0;
     this.lastBeatTime = 0;
     this.lastBeatEnergy = 0;
