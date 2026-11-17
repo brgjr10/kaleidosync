@@ -15,18 +15,14 @@ const INDEX_PATH = process.argv[2] || process.env.INDEX_HTML_PATH || DEFAULT_IND
 const GH_TOKEN = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
 
 /**
- * Sanitize HTML string to prevent injection - only allow safe characters
+ * Sanitize HTML string to prevent injection - whitelist only safe characters
  * This is a defense-in-depth measure for the build script writing API data to file
  */
 function sanitizeHtml(str) {
   if (typeof str !== 'string') return '';
+  // Whitelist: alphanumeric, space, and common safe punctuation
   return str
-    .replace(/[<>]/g, '')
-    .replace(/["']/g, '')
-    .replace(/(?:java|vb)script:/gi, '')
-    .replace(/data:/gi, '')
-    .replace(/on\w+\s*=/gi, '')
-    .replace(/on\w+/gi, '')
+    .replace(/[^a-zA-Z0-9\s\-._~:/?#\[\]@!$&'()*+,;=%]/g, '')
     .slice(0, 500);
 }
 
@@ -36,8 +32,10 @@ function sanitizeHtml(str) {
  */
 function sanitizeAttribute(str) {
   if (typeof str !== 'string') return '';
-  return sanitizeHtml(str)
-    .replace(/[^a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]/g, '');
+  // Whitelist for URL-safe characters
+  return str
+    .replace(/[^a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]/g, '')
+    .slice(0, 500);
 }
 
 /**
