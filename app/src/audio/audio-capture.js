@@ -63,6 +63,8 @@ class AudioCapture extends EventEmitter {
     this.bassLpAlpha = 0;
     this.trebleHpState = 0;
     this.trebleHpInput1 = 0;
+    this.trebleHp2State = 0;
+    this.trebleHp2Input1 = 0;
     this.trebleHpAlpha = 0;
 
     // Frequency analysis buffer - accumulate frames for adequate sample size
@@ -406,7 +408,7 @@ class AudioCapture extends EventEmitter {
     // Frequency band analysis (bass/treble split) — real-time per-frame filtering
     const sampleRate = this.config.sampleRate || 48000;
     const lpAlpha = Math.exp(-2 * Math.PI * 80 / sampleRate);
-    const hpAlpha = Math.exp(-2 * Math.PI * 200 / sampleRate);
+    const hpAlpha = Math.exp(-2 * Math.PI * 2000 / sampleRate);
     let bassTotal = 0;
     let trebleTotal = 0;
     for (let i = 0; i < frameCount; i++) {
@@ -418,8 +420,7 @@ class AudioCapture extends EventEmitter {
       this.bassLpState =
         this.bassLpState + (1 - lpAlpha) * (cleanMono - this.bassLpState);
       bassTotal += this.bassLpState * this.bassLpState;
-      // Treble: high-pass at 200Hz (captures vocals/melody/presence;
-      // 2kHz left too much of the music spectrum in a dead gap)
+      // Treble: high-pass at 2000Hz
       const hpOutput =
         hpAlpha * (this.trebleHpState + cleanMono - this.trebleHpInput1);
       this.trebleHpInput1 = cleanMono;
@@ -429,16 +430,18 @@ class AudioCapture extends EventEmitter {
     const bassRms = Math.sqrt(bassTotal / frameCount);
     const trebleRms = Math.sqrt(trebleTotal / frameCount);
 
-    // Absolute band energy with per-band gain. Each band's RMS is scaled into
-    // the visible 0..1 meter range independently — bass and treble react to
-    // how much energy is actually present in their band, but they are NOT
-    // normalized against each other (they no longer sum to 1.0). Raw RMS values
-    // are small (bass ~0.02-0.08, treble ~0.001-0.03 on typical music), so
-    // without gain the meters barely move and treble reads as 0.
-    const BASS_GAIN = 8;
-    const TREBLE_GAIN = 3;
-    this.state.bass = Math.min(1, bassRms * BASS_GAIN);
-    this.state.treble = Math.min(1, trebleRms * TREBLE_GAIN);
+    // Anchor each band independently to 0..1. The original code divided each
+    // band by (bassRms + trebleRms), making them a balance metric that always
+    // summed to 1.0 — so bass (which dominates most music) was always near the
+    // top and treble near zero. Each band is now scaled by its own gain to fill
+    // the 0..1 meter range independently, then displayed as a percentage.
+    // Gains calibrated so medium-level music (~0.05 raw RMS) shows ~30-50%
+    // and loud music (~0.15 raw RMS) approaches but doesn't pin at 100%.
+    const bassLevel = Math.min(1, bassRms * 5);
+    const trebleLevel = Math.min(1, trebleRms * 20);
+    // Light smoothing to reduce frame-to-frame jitter without lag.
+    this.state.bass = this.state.bass * 0.6 + bassLevel * 0.4;
+    this.state.treble = this.state.treble * 0.6 + trebleLevel * 0.4;
 
     // BPM / beat detection: track bass energy envelope
     this.updateBpm(bassRms);
@@ -497,8 +500,6 @@ class AudioCapture extends EventEmitter {
 
     this.state.level = volume;
     this.state.tapped = true;
-    this.state.bass = Math.min(1, bassRms * BASS_GAIN);
-    this.state.treble = Math.min(1, trebleRms * TREBLE_GAIN);
   }
 
   sampleVolume(windowSize) {
