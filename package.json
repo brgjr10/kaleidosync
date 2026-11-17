@@ -2,7 +2,7 @@
   "name": "kaleidosync-desktop",
   "version": "2.0.0",
   "description": "Standalone desktop app for Kaleidosync visuals synced to system audio",
-  "author": "Brodie",
+  "author": { "name": "Brodie", "email": "brgjr10@users.noreply.github.com" },
   "homepage": "https://github.com/brgjr10/kaleidosync",
   "type": "module",
   "main": "app/main.js",
