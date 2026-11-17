@@ -281,6 +281,26 @@ jobs:
             fi
           fi
 
+      - name: Check unpacked preload directory
+        run: |
+          APP_BUNDLE=$(find dist -name "*.app" -type d | head -1)
+          if [ -n "$APP_BUNDLE" ]; then
+            UNPACKED="$APP_BUNDLE/Contents/Resources/app.asar.unpacked"
+            if [ -d "$UNPACKED" ]; then
+              echo "Unpacked directory exists:"
+              find "$UNPACKED" -type f | head -20
+              if [ -f "$UNPACKED/app/preload.bundle.cjs" ]; then
+                echo "✓ preload.bundle.cjs found in unpacked"
+              else
+                echo "✗ preload.bundle.cjs NOT found in unpacked/app/"
+              fi
+            else
+              echo "Unpacked directory NOT found at $UNPACKED"
+              echo "Contents of Resources:"
+              ls -la "$APP_BUNDLE/Contents/Resources/"
+            fi
+          fi
+
       - name: Test app startup (capture stdout)
         run: |
           APP_BUNDLE=$(find dist -name "*.app" -type d | head -1)
