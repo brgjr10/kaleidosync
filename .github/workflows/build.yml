@@ -61,6 +61,15 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Unit tests
+        run: npm test
+
+      - name: Verify native audio helpers are present
+        run: |
+          test -s native/windows/kaleidosync-wasapi.exe
+          test -s native/windows/smtc.ps1
+          test -s native/macos/kaleidosync-sckit.swift
+
       - name: Build Linux AppImage
         id: build-appimage
         run: |
@@ -166,6 +175,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Compile-check the ScreenCaptureKit helper
+        run: |
+          swiftc -typecheck \
+            -target "$(uname -m)-apple-macos13" \
+            -framework ScreenCaptureKit \
+            -framework CoreMedia \
+            -framework CoreGraphics \
+            -framework AppKit \
+            native/macos/kaleidosync-sckit.swift
+
       - name: Verify sketch catalog
         run: |
           node -e "
@@ -208,9 +227,32 @@ jobs:
           retention-days: 30
         continue-on-error: true
 
+  verify-native:
+    name: Verify native helpers build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mingw-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: Cross-compile the Windows audio helper
+        run: npm run build:native
+
+      - name: Confirm the helper imports only system DLLs
+        run: |
+          x86_64-w64-mingw32-objdump -p native/windows/kaleidosync-wasapi.exe \
+            | grep -i "DLL Name"
+          # A stock Windows install must not need a redistributable.
+          ! x86_64-w64-mingw32-objdump -p native/windows/kaleidosync-wasapi.exe \
+            | grep -iE "libgcc|libwinpthread|libstdc"
+
   auto-release:
     name: Auto Release on Commit
-    needs: [build-linux, build-windows, build-macos]
+    needs: [build-linux, build-windows, build-macos, verify-native]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     permissions:

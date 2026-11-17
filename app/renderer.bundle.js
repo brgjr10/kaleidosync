@@ -20543,6 +20543,18 @@ vec2 k_uv() {
     try {
       const sources = await window.kaleidosync.audio.enumerateDevices();
       populateAudioSourceSelect(sources);
+      if (sources.length === 0 && window.kaleidosync.audio.getBackend) {
+        const backend = await window.kaleidosync.audio.getBackend();
+        if (backend) {
+          console.warn(
+            "[Kaleidosync] No audio sources. Backend:",
+            backend.label,
+            "-",
+            backend.detail,
+            backend.hint || ""
+          );
+        }
+      }
       const spotifySource = sources.find((s) => s.name.toLowerCase().includes("spotify"));
       const appSource = spotifySource || sources.find((s) => s.type === "application");
       if (appSource) {
