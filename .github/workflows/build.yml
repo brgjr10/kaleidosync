@@ -268,6 +268,30 @@ jobs:
             ls -la dist/
           fi
 
+      - name: Verify preload in asar
+        run: |
+          APP_BUNDLE=$(find dist -name "*.app" -type d | head -1)
+          if [ -n "$APP_BUNDLE" ]; then
+            ASAR="$APP_BUNDLE/Contents/Resources/app.asar"
+            if [ -f "$ASAR" ]; then
+              echo "Checking asar contents..."
+              npx asar list "$ASAR" | grep -E "preload|main"
+            else
+              echo "asar not found at $ASAR"
+            fi
+          fi
+
+      - name: Test app startup (capture stdout)
+        run: |
+          APP_BUNDLE=$(find dist -name "*.app" -type d | head -1)
+          if [ -n "$APP_BUNDLE" ]; then
+            EXEC="$APP_BUNDLE/Contents/MacOS/Kaleidosync"
+            echo "Testing app startup..."
+            timeout 10 "$EXEC" --no-sandbox --disable-gpu 2>&1 | head -50 || true
+          else
+            echo "No app bundle found"
+          fi
+
       - name: Run packaged-app smoke test
         run: npx playwright test
         env:
