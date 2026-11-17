@@ -22,9 +22,23 @@ function createWindow() {
   
   console.log('[Main] Creating window...', { width, height });
   
-  const preloadPath = app.isPackaged
-    ? join(process.resourcesPath, 'preload.bundle.cjs')
-    : join(__dirname, 'preload.bundle.cjs');
+  let preloadPath;
+  if (app.isPackaged) {
+    const candidates = [
+      join(process.resourcesPath, 'preload.bundle.cjs'),
+      join(process.resourcesPath, 'app', 'preload.bundle.cjs'),
+      join(path.dirname(process.execPath), '..', 'Resources', 'preload.bundle.cjs'),
+      join(path.dirname(process.execPath), 'preload.bundle.cjs'),
+    ];
+    preloadPath = candidates.find(fs.existsSync);
+    console.log('[Main] Preload candidates:', candidates);
+    console.log('[Main] Selected preload:', preloadPath);
+    if (!preloadPath) {
+      console.error('[Main] ERROR: preload.bundle.cjs not found in any candidate location');
+    }
+  } else {
+    preloadPath = join(__dirname, 'preload.bundle.cjs');
+  }
   
   mainWindow = new BrowserWindow({
     width: Math.min(1600, width),
