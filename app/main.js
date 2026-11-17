@@ -24,8 +24,8 @@ function createWindow() {
   
   let preloadPath;
   if (app.isPackaged) {
-    // Check unpacked asar location first (asarUnpack extracts to app.asar.unpacked/)
-    const unpackedPath = join(dirname(process.resourcesPath), 'app.asar.unpacked', 'app', 'preload.bundle.cjs');
+    // Check unpacked asar location first (asarUnpack extracts to app.asar.unpacked/ next to asar)
+    const unpackedPath = join(process.resourcesPath, 'app.asar.unpacked', 'app', 'preload.bundle.cjs');
     // Also check asar path
     const asarPath = join(__dirname, 'preload.bundle.cjs');
     // External resources path
