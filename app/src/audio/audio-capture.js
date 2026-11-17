@@ -101,10 +101,14 @@ class AudioCapture extends EventEmitter {
   
   async enumeratePipeWireNodes() {
     return new Promise((resolve) => {
-      const proc = spawn('pw-dump', ['-N']);
-      let output = '';
-      proc.stdout.on('data', (data) => output += data.toString());
-      proc.on('close', () => {
+       const proc = spawn('pw-dump', ['-N']);
+       let output = '';
+       proc.stdout.on('data', (data) => output += data.toString());
+       proc.on('error', (err) => {
+         console.warn('[AudioCapture] pw-dump spawn failed:', err.message);
+         resolve();
+       });
+       proc.on('close', () => {
         try {
           const objects = JSON.parse(output);
           for (const obj of objects) {
@@ -157,10 +161,14 @@ class AudioCapture extends EventEmitter {
   
   async enumerateMonitors() {
     return new Promise((resolve) => {
-      const proc = spawn('pactl', ['list', 'short', 'sources']);
-      let output = '';
-      proc.stdout.on('data', (data) => output += data.toString());
-      proc.on('close', () => {
+       const proc = spawn('pactl', ['list', 'short', 'sources']);
+       let output = '';
+       proc.stdout.on('data', (data) => output += data.toString());
+       proc.on('error', (err) => {
+         console.warn('[AudioCapture] pactl spawn failed:', err.message);
+         resolve();
+       });
+       proc.on('close', () => {
         const lines = output.trim().split('\n');
         for (const line of lines) {
           if (line.includes('.monitor')) {
