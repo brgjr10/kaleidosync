@@ -307,7 +307,21 @@ jobs:
           if [ -n "$APP_BUNDLE" ]; then
             EXEC="$APP_BUNDLE/Contents/MacOS/Kaleidosync"
             echo "Testing app startup..."
-            timeout 10 "$EXEC" --no-sandbox --disable-gpu 2>&1 | head -50 || true
+            # Use gtimeout (GNU timeout) if available, otherwise use a Node.js timeout wrapper
+            if command -v gtimeout >/dev/null 2>&1; then
+              gtimeout 10 "$EXEC" --no-sandbox --disable-gpu 2>&1 | head -50 || true
+            else
+              # Use Node.js to run with timeout
+              node -e "
+                const { spawn } = require('child_process');
+                const child = spawn('$EXEC', ['--no-sandbox', '--disable-gpu'], { stdio: 'pipe' });
+                let output = '';
+                child.stdout.on('data', (data) => { output += data.toString(); });
+                child.stderr.on('data', (data) => { output += data.toString(); });
+                setTimeout(() => { child.kill(); console.log(output); }, 10000);
+                child.on('exit', () => { console.log(output); });
+              " 2>&1 | head -50 || true
+            fi
           else
             echo "No app bundle found"
           fi
