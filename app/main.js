@@ -33,6 +33,9 @@ function createWindow() {
     preloadPath = candidates.find(fs.existsSync);
     console.log('[Main] Preload candidates:', candidates);
     console.log('[Main] Selected preload:', preloadPath);
+    console.log('[Main] process.resourcesPath:', process.resourcesPath);
+    console.log('[Main] process.execPath:', process.execPath);
+    console.log('[Main] __dirname:', __dirname);
     if (!preloadPath) {
       console.error('[Main] ERROR: preload.bundle.cjs not found externally, trying asar path');
       // Fallback: try loading from inside the asar (Electron 20+ supports this)
@@ -42,6 +45,8 @@ function createWindow() {
   } else {
     preloadPath = join(__dirname, 'preload.bundle.cjs');
   }
+  
+  console.log('[Main] Final preload path:', preloadPath);
   
   mainWindow = new BrowserWindow({
     width: Math.min(1600, width),
