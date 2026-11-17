@@ -88,8 +88,8 @@ private func writeSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
     let frameCount = Int(CMSampleBufferGetNumSamples(sampleBuffer))
     guard frameCount > 0 else { return }
 
-    guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer),
-          let format = AVAudioFormat(cmAudioFormatDescription: formatDescription) else { return }
+    guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
+    let format = AVAudioFormat(cmAudioFormatDescription: formatDescription)
 
     let channels = Int(format.channelCount)
     guard channels > 0 else { return }
