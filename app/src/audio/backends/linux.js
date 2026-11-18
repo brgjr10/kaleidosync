@@ -525,8 +525,14 @@ export class LinuxBackend {
     const dest = await this.resolveMprisDestination(mprisId);
     if (!dest) return false;
 
-    // MPRIS uses PlayPause where every other backend uses a single toggle.
-    const method = command === 'playpause' ? 'PlayPause' : command;
+    // MPRIS expects capitalized method names: PlayPause, Next, Previous, Stop
+    const methodMap = {
+      playpause: 'PlayPause',
+      next: 'Next',
+      previous: 'Previous',
+      stop: 'Stop'
+    };
+    const method = methodMap[command] || command;
     return new Promise((resolve) => {
       // semgrep-ignore-next-line: intentional spawn to send MPRIS transport command
       const proc = spawn('gdbus', [
