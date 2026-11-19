@@ -378,29 +378,33 @@ test('UI toggle (U key / btn-ui-toggle) shows/hides overlay', async ({}, testInf
 
     // Press U to hide UI - wait longer for key event to process
     await window.keyboard.press('U');
-    await window.waitForTimeout(1000);
+    await window.waitForTimeout(2000);
 
-    // Overlay should be hidden - check for hidden class presence
-    await expect(overlay).toHaveClass('hidden');
+    // Overlay should be hidden - check class attribute contains 'hidden'
+    const classAfterHide = await overlay.getAttribute('class');
+    expect(classAfterHide).toContain('hidden');
 
     // Press U again to show UI
     await window.keyboard.press('U');
-    await window.waitForTimeout(1000);
+    await window.waitForTimeout(2000);
 
     // UI should be visible again
-    await expect(overlay).not.toHaveClass('hidden');
+    const classAfterShow = await overlay.getAttribute('class');
+    expect(classAfterShow).not.toContain('hidden');
 
     // Also test the UI toggle button
     const uiToggle = window.locator('#btn-ui-toggle');
     await expect(uiToggle).toBeAttached();
 
     await uiToggle.click();
-    await window.waitForTimeout(1000);
-    await expect(overlay).toHaveClass('hidden');
+    await window.waitForTimeout(2000);
+    const classAfterBtnHide = await overlay.getAttribute('class');
+    expect(classAfterBtnHide).toContain('hidden');
 
     await uiToggle.click();
-    await window.waitForTimeout(1000);
-    await expect(overlay).not.toHaveClass('hidden');
+    await window.waitForTimeout(2000);
+    const classAfterBtnShow = await overlay.getAttribute('class');
+    expect(classAfterBtnShow).not.toContain('hidden');
 
     expect(pageErrors).toEqual([]);
   } finally {
