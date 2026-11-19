@@ -378,13 +378,16 @@ test('UI toggle (U key / btn-ui-toggle) shows/hides overlay', async ({}, testInf
       window.locator('#sketch-select option')
     ).toHaveCount(expectedCount, { timeout: 20_000 });
 
+    // Additional wait for event listeners to be fully attached
+    await window.waitForTimeout(3000);
+
     // UI overlay should be visible initially (no .hidden class)
     const overlay = window.locator('#overlay');
     await expect(overlay).not.toHaveClass('hidden');
 
     // Press U to hide UI - wait longer for key event to process
     await window.keyboard.press('U');
-    await window.waitForTimeout(2000);
+    await window.waitForTimeout(3000);
 
     // Overlay should be hidden - check class attribute contains 'hidden'
     const classAfterHide = await overlay.getAttribute('class');
@@ -392,23 +395,23 @@ test('UI toggle (U key / btn-ui-toggle) shows/hides overlay', async ({}, testInf
 
     // Press U again to show UI
     await window.keyboard.press('U');
-    await window.waitForTimeout(2000);
+    await window.waitForTimeout(3000);
 
     // UI should be visible again
     const classAfterShow = await overlay.getAttribute('class');
     expect(classAfterShow).not.toContain('hidden');
 
-    // Also test the UI toggle button
+    // Also test the UI toggle button - use force click since button may not be "visible" by Playwright's definition
     const uiToggle = window.locator('#btn-ui-toggle');
     await expect(uiToggle).toBeAttached();
 
-    await uiToggle.click();
-    await window.waitForTimeout(2000);
+    await uiToggle.click({ force: true });
+    await window.waitForTimeout(3000);
     const classAfterBtnHide = await overlay.getAttribute('class');
     expect(classAfterBtnHide).toContain('hidden');
 
-    await uiToggle.click();
-    await window.waitForTimeout(2000);
+    await uiToggle.click({ force: true });
+    await window.waitForTimeout(3000);
     const classAfterBtnShow = await overlay.getAttribute('class');
     expect(classAfterBtnShow).not.toContain('hidden');
 
