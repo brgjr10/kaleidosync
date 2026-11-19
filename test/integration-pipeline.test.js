@@ -213,7 +213,8 @@ test('SketchEngine: selects variants and triggers tween', () => {
   // Tween uniforms for boolean uniforms are updated during tween
   assert.ok('warpTweenProgress' in nextUniforms || 'kaleidoscopeTweenProgress' in nextUniforms);
 
-  const finalUniforms = engine.updateTween(engine.tweenStartTime + 1500);
+  // Advance tween to completion
+  engine.updateTween(engine.tweenStartTime + 1500);
   assert.equal(engine.isTweening(), false);
 });
 
@@ -309,7 +310,8 @@ test('Integration: variant tween updates uniforms for shader on every frame', ()
   assert.ok(midUniforms);
   assert.ok('warpTweenProgress' in midUniforms || 'kaleidoscopeTweenProgress' in midUniforms);
 
-  const endUniforms = engine.updateTween(engine.tweenStartTime + 1500);
+  // Advance tween to completion
+  engine.updateTween(engine.tweenStartTime + 1500);
   assert.equal(engine.isTweening(), false);
 });
 
