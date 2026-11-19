@@ -661,32 +661,34 @@ function setupEventListeners() {
   // transport handler above, so ignore modified keystrokes here.
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // Guard: renderer may not be initialized yet (e.g. WebGL failure on CI)
+    const canApplySketch = () => renderer && sketchEngine;
     switch (e.key) {
       case 'ArrowLeft':
         sketchEngine.selectPreviousSketch();
         updateSketchUI();
-        applyCurrentSketch();
+        if (canApplySketch()) applyCurrentSketch();
         break;
       case 'ArrowRight':
         sketchEngine.selectNextSketch();
         updateSketchUI();
-        applyCurrentSketch();
+        if (canApplySketch()) applyCurrentSketch();
         break;
       case 'ArrowUp':
         sketchEngine.selectPreviousVariant();
         variantSelect.value = sketchEngine.currentVariantIndex;
-        applyCurrentSketch();
+        if (canApplySketch()) applyCurrentSketch();
         break;
       case 'ArrowDown':
         sketchEngine.selectNextVariant();
         variantSelect.value = sketchEngine.currentVariantIndex;
-        applyCurrentSketch();
+        if (canApplySketch()) applyCurrentSketch();
         break;
       case 'r':
       case 'R':
         sketchEngine.selectRandomSketch();
         updateSketchUI();
-        applyCurrentSketch();
+        if (canApplySketch()) applyCurrentSketch();
         break;
       case 'm':
       case 'M':

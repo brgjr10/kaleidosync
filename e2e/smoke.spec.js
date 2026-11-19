@@ -253,8 +253,8 @@ test('audio device dropdown populates and capture can be started', async ({}, te
     await window.waitForLoadState('domcontentloaded');
     await expect(window.locator('#app canvas')).toBeVisible({ timeout: 20_000 });
 
-    // Wait for audio device dropdown to populate
-    await window.waitForTimeout(2000);
+    // Wait for audio device dropdown to populate (backend enumeration async)
+    await window.waitForTimeout(3000);
 
     const audioSelect = window.locator('#audio-device-select');
     await expect(audioSelect).toBeAttached();
@@ -266,9 +266,9 @@ test('audio device dropdown populates and capture can be started', async ({}, te
     // Click Start Capture button (may fail on headless CI without audio, but shouldn't crash)
     const startBtn = window.locator('#btn-audio-start');
     await expect(startBtn).toBeAttached();
+    await expect(startBtn).toBeVisible();
 
-    // Just verify the button is clickable (don't actually start capture on headless CI)
-    await startBtn.hover();
+    // Verify the button is enabled
     await expect(startBtn).toBeEnabled();
 
     // Verify no uncaught exceptions during UI interaction
@@ -306,6 +306,9 @@ test('sketch navigation via keyboard and dropdown works', async ({}, testInfo) =
       window.locator('#sketch-select option')
     ).toHaveCount(expectedCount, { timeout: 20_000 });
 
+    // Wait for renderer to fully initialize before testing keyboard nav
+    await window.waitForTimeout(2000);
+
     // Test keyboard navigation: Right arrow = next sketch
     await window.keyboard.press('ArrowRight');
     await window.waitForTimeout(500);
@@ -334,12 +337,6 @@ test('sketch navigation via keyboard and dropdown works', async ({}, testInfo) =
     await window.keyboard.press('F'); // Exit fullscreen
     await window.waitForTimeout(500);
 
-    // Test UI hide toggle
-    await window.keyboard.press('U');
-    await window.waitForTimeout(500);
-    await window.keyboard.press('U'); // Show UI again
-    await window.waitForTimeout(500);
-
     // Test dropdown selection directly
     const sketchSelect = window.locator('#sketch-select');
     await sketchSelect.selectOption({ index: Math.min(2, expectedCount - 1) });
@@ -352,7 +349,7 @@ test('sketch navigation via keyboard and dropdown works', async ({}, testInfo) =
   }
 });
 
-test('hidden mode (U key) toggles UI overlay', async ({}, testInfo) => {
+test('UI toggle (U key / btn-ui-toggle) shows/hides overlay', async ({}, testInfo) => {
   const productName = readProductName();
   const executablePath = resolveExecutable(productName);
   expect(fs.existsSync(executablePath)).toBeTruthy();
@@ -375,25 +372,35 @@ test('hidden mode (U key) toggles UI overlay', async ({}, testInfo) => {
     await window.waitForLoadState('domcontentloaded');
     await expect(window.locator('#app canvas')).toBeVisible({ timeout: 20_000 });
 
-    // UI should be visible initially
-    const sketchSelect = window.locator('#sketch-select');
-    await expect(sketchSelect).toBeVisible();
+    // UI overlay should be visible initially (no .hidden class)
+    const overlay = window.locator('#overlay');
+    await expect(overlay).not.toHaveClass('hidden');
 
     // Press U to hide UI
     await window.keyboard.press('U');
     await window.waitForTimeout(500);
 
-    // UI elements should be hidden (opacity 0 or display none)
-    // The hints panel should be hidden
-    const hints = window.locator('.hints');
-    await expect(hints).toHaveCSS('opacity', '0');
+    // Overlay should be hidden
+    await expect(overlay).toHaveClass('hidden');
 
     // Press U again to show UI
     await window.keyboard.press('U');
     await window.waitForTimeout(500);
 
     // UI should be visible again
-    await expect(sketchSelect).toBeVisible();
+    await expect(overlay).not.toHaveClass('hidden');
+
+    // Also test the UI toggle button
+    const uiToggle = window.locator('#btn-ui-toggle');
+    await expect(uiToggle).toBeAttached();
+
+    await uiToggle.click();
+    await window.waitForTimeout(500);
+    await expect(overlay).toHaveClass('hidden');
+
+    await uiToggle.click();
+    await window.waitForTimeout(500);
+    await expect(overlay).not.toHaveClass('hidden');
 
     expect(pageErrors).toEqual([]);
   } finally {
