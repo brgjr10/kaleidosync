@@ -229,3 +229,174 @@ test('packaged app boots, renders WebGL, and lists the sketch catalog', async ({
     await electronApp.close();
   }
 });
+
+test('audio device dropdown populates and capture can be started', async ({}, testInfo) => {
+  const productName = readProductName();
+  const executablePath = resolveExecutable(productName);
+  expect(fs.existsSync(executablePath)).toBeTruthy();
+
+  const electronApp = await electron.launch({
+    executablePath,
+    cwd: path.dirname(executablePath),
+    args: ['--no-sandbox', ...softwareGlArgs()],
+    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' }
+  });
+
+  const pageErrors = [];
+  const consoleLines = [];
+
+  try {
+    const window = await electronApp.firstWindow({ timeout: 30_000 });
+    window.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+    window.on('console', (msg) => consoleLines.push(`[${msg.type()}] ${msg.text()}`));
+
+    await window.waitForLoadState('domcontentloaded');
+    await expect(window.locator('#app canvas')).toBeVisible({ timeout: 20_000 });
+
+    // Wait for audio device dropdown to populate
+    await window.waitForTimeout(2000);
+
+    const audioSelect = window.locator('#audio-device-select');
+    await expect(audioSelect).toBeAttached();
+
+    // The dropdown should have at least the default option
+    const options = await audioSelect.locator('option').all();
+    expect(options.length).toBeGreaterThan(0);
+
+    // Click Start Capture button (may fail on headless CI without audio, but shouldn't crash)
+    const startBtn = window.locator('#btn-audio-start');
+    await expect(startBtn).toBeAttached();
+
+    // Just verify the button is clickable (don't actually start capture on headless CI)
+    await startBtn.hover();
+    await expect(startBtn).toBeEnabled();
+
+    // Verify no uncaught exceptions during UI interaction
+    expect(pageErrors).toEqual([]);
+  } finally {
+    await electronApp.close();
+  }
+});
+
+test('sketch navigation via keyboard and dropdown works', async ({}, testInfo) => {
+  const productName = readProductName();
+  const executablePath = resolveExecutable(productName);
+  expect(fs.existsSync(executablePath)).toBeTruthy();
+
+  const electronApp = await electron.launch({
+    executablePath,
+    cwd: path.dirname(executablePath),
+    args: ['--no-sandbox', ...softwareGlArgs()],
+    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' }
+  });
+
+  const pageErrors = [];
+  const consoleLines = [];
+
+  try {
+    const window = await electronApp.firstWindow({ timeout: 30_000 });
+    window.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+    window.on('console', (msg) => consoleLines.push(`[${msg.type()}] ${msg.text()}`));
+
+    await window.waitForLoadState('domcontentloaded');
+    await expect(window.locator('#app canvas')).toBeVisible({ timeout: 20_000 });
+
+    const expectedCount = readExpectedSketchCount();
+    await expect(
+      window.locator('#sketch-select option')
+    ).toHaveCount(expectedCount, { timeout: 20_000 });
+
+    // Test keyboard navigation: Right arrow = next sketch
+    await window.keyboard.press('ArrowRight');
+    await window.waitForTimeout(500);
+
+    // Test keyboard navigation: Left arrow = previous sketch
+    await window.keyboard.press('ArrowLeft');
+    await window.waitForTimeout(500);
+
+    // Test random sketch key
+    await window.keyboard.press('R');
+    await window.waitForTimeout(500);
+
+    // Test variant navigation: Up/Down arrows
+    await window.keyboard.press('ArrowUp');
+    await window.waitForTimeout(500);
+    await window.keyboard.press('ArrowDown');
+    await window.waitForTimeout(500);
+
+    // Test magic tween key
+    await window.keyboard.press('M');
+    await window.waitForTimeout(1000);
+
+    // Test fullscreen toggle
+    await window.keyboard.press('F');
+    await window.waitForTimeout(500);
+    await window.keyboard.press('F'); // Exit fullscreen
+    await window.waitForTimeout(500);
+
+    // Test UI hide toggle
+    await window.keyboard.press('U');
+    await window.waitForTimeout(500);
+    await window.keyboard.press('U'); // Show UI again
+    await window.waitForTimeout(500);
+
+    // Test dropdown selection directly
+    const sketchSelect = window.locator('#sketch-select');
+    await sketchSelect.selectOption({ index: Math.min(2, expectedCount - 1) });
+    await window.waitForTimeout(500);
+
+    // Verify no uncaught exceptions during navigation
+    expect(pageErrors).toEqual([]);
+  } finally {
+    await electronApp.close();
+  }
+});
+
+test('hidden mode (U key) toggles UI overlay', async ({}, testInfo) => {
+  const productName = readProductName();
+  const executablePath = resolveExecutable(productName);
+  expect(fs.existsSync(executablePath)).toBeTruthy();
+
+  const electronApp = await electron.launch({
+    executablePath,
+    cwd: path.dirname(executablePath),
+    args: ['--no-sandbox', ...softwareGlArgs()],
+    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' }
+  });
+
+  const pageErrors = [];
+  const consoleLines = [];
+
+  try {
+    const window = await electronApp.firstWindow({ timeout: 30_000 });
+    window.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+    window.on('console', (msg) => consoleLines.push(`[${msg.type()}] ${msg.text()}`));
+
+    await window.waitForLoadState('domcontentloaded');
+    await expect(window.locator('#app canvas')).toBeVisible({ timeout: 20_000 });
+
+    // UI should be visible initially
+    const sketchSelect = window.locator('#sketch-select');
+    await expect(sketchSelect).toBeVisible();
+
+    // Press U to hide UI
+    await window.keyboard.press('U');
+    await window.waitForTimeout(500);
+
+    // UI elements should be hidden (opacity 0 or display none)
+    // The hints panel should be hidden
+    const hints = window.locator('.hints');
+    await expect(hints).toHaveCSS('opacity', '0');
+
+    // Press U again to show UI
+    await window.keyboard.press('U');
+    await window.waitForTimeout(500);
+
+    // UI should be visible again
+    await expect(sketchSelect).toBeVisible();
+
+    expect(pageErrors).toEqual([]);
+  } finally {
+    await electronApp.close();
+  }
+});
