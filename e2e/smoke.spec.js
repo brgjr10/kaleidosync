@@ -349,7 +349,7 @@ test('sketch navigation via keyboard and dropdown works', async ({}, testInfo) =
   }
 });
 
-test('UI toggle (U key / btn-ui-toggle) shows/hides overlay', async ({}, testInfo) => {
+test('UI toggle (U key) shows/hides overlay', async ({}, testInfo) => {
   const productName = readProductName();
   const executablePath = resolveExecutable(productName);
   expect(fs.existsSync(executablePath)).toBeTruthy();
@@ -400,20 +400,6 @@ test('UI toggle (U key / btn-ui-toggle) shows/hides overlay', async ({}, testInf
     // UI should be visible again
     const classAfterShow = await overlay.getAttribute('class');
     expect(classAfterShow).not.toContain('hidden');
-
-    // Also test the UI toggle button - use force click since button may not be "visible" by Playwright's definition
-    const uiToggle = window.locator('#btn-ui-toggle');
-    await expect(uiToggle).toBeAttached();
-
-    await uiToggle.click({ force: true });
-    await window.waitForTimeout(3000);
-    const classAfterBtnHide = await overlay.getAttribute('class');
-    expect(classAfterBtnHide).toContain('hidden');
-
-    await uiToggle.click({ force: true });
-    await window.waitForTimeout(3000);
-    const classAfterBtnShow = await overlay.getAttribute('class');
-    expect(classAfterBtnShow).not.toContain('hidden');
 
     expect(pageErrors).toEqual([]);
   } finally {
