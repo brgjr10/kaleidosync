@@ -508,31 +508,31 @@ function setupEventListeners() {
     const index = parseInt(e.target.value);
     sketchEngine.selectSketch(index);
     updateSketchUI();
-    applyCurrentSketch();
+    if (renderer) applyCurrentSketch();
   });
 
   variantSelect.addEventListener('change', (e) => {
     const index = parseInt(e.target.value);
     sketchEngine.selectVariant(index);
-    applyCurrentSketch();
+    if (renderer) applyCurrentSketch();
   });
 
   btnPrev.addEventListener('click', () => {
     sketchEngine.selectPreviousSketch();
     updateSketchUI();
-    applyCurrentSketch();
+    if (renderer) applyCurrentSketch();
   });
 
   btnNext.addEventListener('click', () => {
     sketchEngine.selectNextSketch();
     updateSketchUI();
-    applyCurrentSketch();
+    if (renderer) applyCurrentSketch();
   });
 
   btnRandom.addEventListener('click', () => {
     sketchEngine.selectRandomSketch();
     updateSketchUI();
-    applyCurrentSketch();
+    if (renderer) applyCurrentSketch();
   });
 
   btnMagic.addEventListener('click', () => {
@@ -542,13 +542,13 @@ function setupEventListeners() {
   btnPrevVariant.addEventListener('click', () => {
     sketchEngine.selectPreviousVariant();
     variantSelect.value = sketchEngine.currentVariantIndex;
-    applyCurrentSketch();
+    if (renderer) applyCurrentSketch();
   });
 
   btnNextVariant.addEventListener('click', () => {
     sketchEngine.selectNextVariant();
     variantSelect.value = sketchEngine.currentVariantIndex;
-    applyCurrentSketch();
+    if (renderer) applyCurrentSketch();
   });
 
   btnAudioStart.addEventListener('click', startAudioCapture);

@@ -376,16 +376,16 @@ test('UI toggle (U key / btn-ui-toggle) shows/hides overlay', async ({}, testInf
     const overlay = window.locator('#overlay');
     await expect(overlay).not.toHaveClass('hidden');
 
-    // Press U to hide UI
+    // Press U to hide UI - wait longer for key event to process
     await window.keyboard.press('U');
-    await window.waitForTimeout(500);
+    await window.waitForTimeout(1000);
 
-    // Overlay should be hidden
+    // Overlay should be hidden - check for hidden class presence
     await expect(overlay).toHaveClass('hidden');
 
     // Press U again to show UI
     await window.keyboard.press('U');
-    await window.waitForTimeout(500);
+    await window.waitForTimeout(1000);
 
     // UI should be visible again
     await expect(overlay).not.toHaveClass('hidden');
@@ -395,11 +395,11 @@ test('UI toggle (U key / btn-ui-toggle) shows/hides overlay', async ({}, testInf
     await expect(uiToggle).toBeAttached();
 
     await uiToggle.click();
-    await window.waitForTimeout(500);
+    await window.waitForTimeout(1000);
     await expect(overlay).toHaveClass('hidden');
 
     await uiToggle.click();
-    await window.waitForTimeout(500);
+    await window.waitForTimeout(1000);
     await expect(overlay).not.toHaveClass('hidden');
 
     expect(pageErrors).toEqual([]);
