@@ -331,18 +331,19 @@
       position: relative;
       overflow: visible;
     }
-    .sync-shadow {
+    .hero h1 .sync-shadow {
       position: absolute;
       inset: 0;
-      z-index: 0;
+      z-index: 1;
       color: #fff;
-      display: inline-block;
-      padding-right: 0.18em;
-      margin-right: -0.18em;
+      text-shadow: none;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6))
+              drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4))
+              drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
     }
     .hero h1 .sync-gradient {
       position: relative;
-      z-index: 1;
+      z-index: 2;
       display: inline-block;
       min-width: auto;
       width: auto;
@@ -436,6 +437,51 @@
       border-color: transparent;
     }
     .btn.secondary:hover { background: var(--accent2-hover); }
+
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-2) var(--space-4);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.03);
+      transition: all var(--transition-fast);
+    }
+
+    .download-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0, 212, 170, 0.06);
+      transform: translateY(-1px);
+    }
+    .download-btn:active { transform: translateY(0) scale(0.99); }
+
+    .download-btn.btn.secondary {
+      background: var(--accent2);
+      color: #fff;
+      border-color: transparent;
+    }
+    .download-btn.btn.secondary:hover { background: var(--accent2-hover); }
+
+    .version-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      background: rgba(0, 212, 170, 0.1);
+      margin-left: var(--space-2);
+    }
 
     .hero-overlay {
       position: relative;
@@ -1088,7 +1134,7 @@
   <section class="hero" id="visuals">
     <div id="canvas-wrap"></div>
     <div class="hero-layer">
-      <h1>Kaleido<span class="sync-wrap"><span class="sync-shadow">sync</span><span class="sync-gradient">sync</span></span></h1>
+      <h1>Kaleido<span class="sync-wrap"><span class="sync-shadow" aria-hidden="true">sync</span><span class="sync-gradient">sync</span></span></h1>
       <p>50 audio-reactive visualizers synced to system audio — no API keys, no tokens, no DOM tapping.</p>
       <div class="hero-actions">
         <a href="#releases" class="btn primary">Download <span>▸</span></a>
@@ -1192,7 +1238,7 @@
     </div>
   </section>
 
-  <!-- ======================= PLATFORMS ======================= -->
+<!-- ======================= PLATFORMS ======================= -->
   <section id="platforms" class="reveal">
     <div class="sec-head">
       <span class="kicker">Platforms</span>
@@ -1203,34 +1249,34 @@
     <div class="grid cols3">
       <div class="card">
         <div class="tag linux">Linux</div>
-        <h3>AppImage &amp; .deb</h3>
+        <h3>AppImage & .deb</h3>
         <p>x86_64 AppImage (~109 MB) and Debian/Ubuntu .deb (~75 MB). Captures PipeWire or PulseAudio loopback. Prefer
           sources named "Monitor" or "Loopback".</p>
-        <div class="plat row">
-          <a href="#releases">AppImage (x86_64)</a>
-          <a href="#releases">.deb (x86_64)</a>
+        <div class="plat row" id="linux-downloads">
+          <a href="#releases" class="download-btn" data-platform="linux" data-format="appimage">AppImage (x86_64)</a>
+          <a href="#releases" class="download-btn" data-platform="linux" data-format="deb">.deb (x86_64)</a>
         </div>
       </div>
       <div class="card">
         <div class="tag win">Windows</div>
-        <h3>NSIS installer &amp; portable</h3>
+        <h3>NSIS installer & portable</h3>
         <p>WASAPI loopback capture — system audio plus per-app process loopback (Windows 10 2004+). The capture
           helper ships prebuilt, so there is nothing extra to install. NSIS installer (.exe) and a portable .zip
           bundle.</p>
-        <div class="plat row">
-          <a href="#releases">NSIS installer (.exe)</a>
-          <a href="#releases">Portable (.zip)</a>
+        <div class="plat row" id="windows-downloads">
+          <a href="#releases" class="download-btn" data-platform="windows" data-format="nsis">NSIS installer (.exe)</a>
+          <a href="#releases" class="download-btn" data-platform="windows" data-format="portable">Portable (.zip)</a>
         </div>
       </div>
       <div class="card">
         <div class="tag mac">macOS</div>
-        <h3>DMG &amp; ZIP</h3>
+        <h3>DMG & ZIP</h3>
         <p>ScreenCaptureKit capture — system audio and per-app audio, no virtual device needed. Requires the Xcode
           Command Line Tools to build the helper on first run. Universal DMG and ZIP builds for Apple Silicon and
           Intel.</p>
-        <div class="plat row">
-          <a href="#releases">DMG (universal)</a>
-          <a href="#releases">ZIP (universal)</a>
+        <div class="plat row" id="macos-downloads">
+          <a href="#releases" class="download-btn" data-platform="macos" data-format="dmg">DMG (universal)</a>
+          <a href="#releases" class="download-btn" data-platform="macos" data-format="zip">ZIP (universal)</a>
         </div>
       </div>
     </div>
@@ -1308,18 +1354,29 @@
       <p>A new versioned release is published automatically on every push to <code>main</code>. All platforms are built
         by GitHub Actions.</p>
     </div>
-    <div class="release-card">
+    <div class="release-card" id="latest-release">
       <div class="release-badge">Latest release</div>
       <div class="release-body">
-        <h3>Kaleidosync Desktop <span style="font-weight:600">v2.0.0</span></h3>
+        <h3>Kaleidosync Desktop <span id="latest-version" style="font-weight:600">v2.0.0</span></h3>
         <div class="meta">Published automatically from <code>main</code> · MIT License</div>
         <p>8 assets per release: Linux AppImage + .deb, Windows NSIS installer + portable ZIP, macOS DMG + ZIP. Check
           the releases page for the exact tag and changelog.</p>
-        <div class="rel-cta">
+        <div class="rel-cta" id="release-downloads">
           <a href="https://github.com/brgjr10/kaleidosync/releases" class="btn primary" target="_blank"
             rel="noopener">Open releases page ▸</a>
           <a href="https://github.com/brgjr10/kaleidosync/releases/latest" class="btn" target="_blank"
             rel="noopener">Latest asset downloads ▸</a>
+        </div>
+        <div class="direct-downloads" id="direct-downloads" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">Direct asset links (auto-resolved):</p>
+          <div class="plat row" style="gap:8px; flex-wrap:wrap;">
+            <a href="#" class="download-btn btn secondary" id="dl-linux-appimage" target="_blank" rel="noopener">Linux AppImage</a>
+            <a href="#" class="download-btn btn secondary" id="dl-linux-deb" target="_blank" rel="noopener">Linux .deb</a>
+            <a href="#" class="download-btn btn secondary" id="dl-win-nsis" target="_blank" rel="noopener">Windows NSIS (.exe)</a>
+            <a href="#" class="download-btn btn secondary" id="dl-win-portable" target="_blank" rel="noopener">Windows Portable (.zip)</a>
+            <a href="#" class="download-btn btn secondary" id="dl-macos-dmg" target="_blank" rel="noopener">macOS DMG</a>
+            <a href="#" class="download-btn btn secondary" id="dl-macos-zip" target="_blank" rel="noopener">macOS ZIP</a>
+          </div>
         </div>
       </div>
       <div class="release-preview">
@@ -3705,7 +3762,132 @@ async function loadReleases() {
 }
 loadReleases();
 
+// fetch latest release for version badge and direct download links
+async function loadLatestRelease() {
+  const versionEl = document.getElementById('latest-version');
+  const directDownloads = document.getElementById('direct-downloads');
+  const downloadBtns = document.querySelectorAll('.download-btn[data-platform]');
+  const directLinks = {
+    'linux-appimage': document.getElementById('dl-linux-appimage'),
+    'linux-deb': document.getElementById('dl-linux-deb'),
+    'win-nsis': document.getElementById('dl-win-nsis'),
+    'win-portable': document.getElementById('dl-win-portable'),
+    'macos-dmg': document.getElementById('dl-macos-dmg'),
+    'macos-zip': document.getElementById('dl-macos-zip')
+  };
+
+  try {
+    const res = await fetch('https://api.github.com/repos/brgjr10/kaleidosync/releases/latest', {
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (!res.ok) throw new Error('status ' + res.status);
+    const release = await res.json();
+
+    const tag = release.tag_name || release.name || 'v2.0.0';
+    const cleanVersion = tag.replace(/^v/, '');
+
+    // Update version badge
+    if (versionEl) {
+      versionEl.textContent = tag;
+      // Add version badge element if not present
+      if (!versionEl.nextElementSibling?.classList.contains('version-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'version-badge';
+        badge.textContent = cleanVersion;
+        versionEl.insertAdjacentElement('afterend', badge);
+      }
+    }
+
+    // Build asset name patterns based on the release tag
+    const baseName = `Kaleidosync-${cleanVersion}`;
+
+    // Populate direct download links
+    const assets = release.assets || [];
+    const assetMap = {};
+    for (const asset of assets) {
+      assetMap[asset.name] = asset.browser_download_url;
+    }
+
+    // Try to match assets by pattern
+    const patterns = {
+      'linux-appimage': [`${baseName}.AppImage`, `Kaleidosync-${cleanVersion}.AppImage`],
+      'linux-deb': [`kaleidosync-desktop_${cleanVersion}_amd64.deb`, `kaleidosync-desktop_${cleanVersion}.deb`],
+      'win-nsis': [`Kaleidosync-${cleanVersion}-setup.exe`, `Kaleidosync-${cleanVersion}.exe`],
+      'win-portable': [`Kaleidosync-${cleanVersion}-portable.zip`, `Kaleidosync-${cleanVersion}.zip`],
+      'macos-dmg': [`Kaleidosync-${cleanVersion}.dmg`, `Kaleidosync-${cleanVersion}-universal.dmg`],
+      'macos-zip': [`Kaleidosync-${cleanVersion}-mac.zip`, `Kaleidosync-${cleanVersion}-universal.zip`]
+    };
+
+    let foundAny = false;
+    for (const [key, names] of Object.entries(patterns)) {
+      const linkEl = directLinks[key];
+      if (!linkEl) continue;
+
+      let url = null;
+      for (const name of names) {
+        if (assetMap[name]) {
+          url = assetMap[name];
+          break;
+        }
+      }
+
+      // Fallback: search assets by platform keywords
+      if (!url) {
+        const keyword = key.split('-')[0];
+        for (const [name, assetUrl] of Object.entries(assetMap)) {
+          const lower = name.toLowerCase();
+          if ((keyword === 'linux' && (lower.includes('.appimage') || lower.includes('.deb'))) ||
+              (keyword === 'win' && (lower.includes('.exe') || lower.includes('.zip'))) ||
+              (keyword === 'macos' && (lower.includes('.dmg') || lower.includes('.zip')))) {
+            if ((key.includes('appimage') && lower.includes('.appimage')) ||
+                (key.includes('deb') && lower.includes('.deb')) ||
+                (key.includes('nsis') && lower.includes('setup.exe')) ||
+                (key.includes('portable') && lower.includes('portable.zip')) ||
+                (key.includes('dmg') && lower.includes('.dmg')) ||
+                (key.includes('zip') && !lower.includes('.dmg') && !lower.includes('portable'))) {
+              url = assetUrl;
+              break;
+            }
+          }
+        }
+      }
+
+      if (url) {
+        linkEl.href = url;
+        linkEl.style.display = 'inline-flex';
+        foundAny = true;
+      } else {
+        linkEl.style.display = 'none';
+      }
+    }
+
+    if (foundAny && directDownloads) {
+      directDownloads.style.display = 'block';
+    }
+
+    // Update platform download buttons to link to releases page with anchor
+    downloadBtns.forEach(btn => {
+      const platform = btn.dataset.platform;
+      const format = btn.dataset.format;
+      btn.href = `https://github.com/brgjr10/kaleidosync/releases/latest`;
+    });
+
+  } catch (e) {
+    console.warn('Could not load latest release:', e);
+    // Fallback: show direct download section with generic links
+    if (directDownloads) {
+      directDownloads.style.display = 'block';
+      for (const linkEl of Object.values(directLinks)) {
+        if (linkEl) {
+          linkEl.href = 'https://github.com/brgjr10/kaleidosync/releases/latest';
+          linkEl.style.display = 'inline-flex';
+        }
+      }
+    }
+  }
+}
+loadLatestRelease();
+
 </script>
 </body>
-
 </html>

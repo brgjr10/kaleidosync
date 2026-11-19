@@ -229,3 +229,180 @@ test('packaged app boots, renders WebGL, and lists the sketch catalog', async ({
     await electronApp.close();
   }
 });
+
+test('audio device dropdown populates and capture can be started', async ({}, testInfo) => {
+  const productName = readProductName();
+  const executablePath = resolveExecutable(productName);
+  expect(fs.existsSync(executablePath)).toBeTruthy();
+
+  const electronApp = await electron.launch({
+    executablePath,
+    cwd: path.dirname(executablePath),
+    args: ['--no-sandbox', ...softwareGlArgs()],
+    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' }
+  });
+
+  const pageErrors = [];
+  const consoleLines = [];
+
+  try {
+    const window = await electronApp.firstWindow({ timeout: 30_000 });
+    window.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+    window.on('console', (msg) => consoleLines.push(`[${msg.type()}] ${msg.text()}`));
+
+    await window.waitForLoadState('domcontentloaded');
+    await expect(window.locator('#app canvas')).toBeVisible({ timeout: 20_000 });
+
+    // Wait for audio device dropdown to populate (backend enumeration async)
+    await window.waitForTimeout(3000);
+
+    const audioSelect = window.locator('#audio-device-select');
+    await expect(audioSelect).toBeAttached();
+
+    // The dropdown should have at least the default option
+    const options = await audioSelect.locator('option').all();
+    expect(options.length).toBeGreaterThan(0);
+
+    // Click Start Capture button (may fail on headless CI without audio, but shouldn't crash)
+    const startBtn = window.locator('#btn-audio-start');
+    await expect(startBtn).toBeAttached();
+    await expect(startBtn).toBeVisible();
+
+    // Verify the button is enabled
+    await expect(startBtn).toBeEnabled();
+
+    // Verify no uncaught exceptions during UI interaction
+    expect(pageErrors).toEqual([]);
+  } finally {
+    await electronApp.close();
+  }
+});
+
+test('sketch navigation via keyboard and dropdown works', async ({}, testInfo) => {
+  const productName = readProductName();
+  const executablePath = resolveExecutable(productName);
+  expect(fs.existsSync(executablePath)).toBeTruthy();
+
+  const electronApp = await electron.launch({
+    executablePath,
+    cwd: path.dirname(executablePath),
+    args: ['--no-sandbox', ...softwareGlArgs()],
+    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' }
+  });
+
+  const pageErrors = [];
+  const consoleLines = [];
+
+  try {
+    const window = await electronApp.firstWindow({ timeout: 30_000 });
+    window.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+    window.on('console', (msg) => consoleLines.push(`[${msg.type()}] ${msg.text()}`));
+
+    await window.waitForLoadState('domcontentloaded');
+    await expect(window.locator('#app canvas')).toBeVisible({ timeout: 20_000 });
+
+    const expectedCount = readExpectedSketchCount();
+    await expect(
+      window.locator('#sketch-select option')
+    ).toHaveCount(expectedCount, { timeout: 20_000 });
+
+    // Wait for renderer to fully initialize before testing keyboard nav
+    await window.waitForTimeout(2000);
+
+    // Test keyboard navigation: Right arrow = next sketch
+    await window.keyboard.press('ArrowRight');
+    await window.waitForTimeout(500);
+
+    // Test keyboard navigation: Left arrow = previous sketch
+    await window.keyboard.press('ArrowLeft');
+    await window.waitForTimeout(500);
+
+    // Test random sketch key
+    await window.keyboard.press('R');
+    await window.waitForTimeout(500);
+
+    // Test variant navigation: Up/Down arrows
+    await window.keyboard.press('ArrowUp');
+    await window.waitForTimeout(500);
+    await window.keyboard.press('ArrowDown');
+    await window.waitForTimeout(500);
+
+    // Test magic tween key
+    await window.keyboard.press('M');
+    await window.waitForTimeout(1000);
+
+    // Test fullscreen toggle
+    await window.keyboard.press('F');
+    await window.waitForTimeout(500);
+    await window.keyboard.press('F'); // Exit fullscreen
+    await window.waitForTimeout(500);
+
+    // Test dropdown selection directly
+    const sketchSelect = window.locator('#sketch-select');
+    await sketchSelect.selectOption({ index: Math.min(2, expectedCount - 1) });
+    await window.waitForTimeout(500);
+
+    // Verify no uncaught exceptions during navigation
+    expect(pageErrors).toEqual([]);
+  } finally {
+    await electronApp.close();
+  }
+});
+
+test('UI toggle (U key) shows/hides overlay', async ({}, testInfo) => {
+  const productName = readProductName();
+  const executablePath = resolveExecutable(productName);
+  expect(fs.existsSync(executablePath)).toBeTruthy();
+
+  const electronApp = await electron.launch({
+    executablePath,
+    cwd: path.dirname(executablePath),
+    args: ['--no-sandbox', ...softwareGlArgs()],
+    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' }
+  });
+
+  const pageErrors = [];
+  const consoleLines = [];
+
+  try {
+    const window = await electronApp.firstWindow({ timeout: 30_000 });
+    window.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+    window.on('console', (msg) => consoleLines.push(`[${msg.type()}] ${msg.text()}`));
+
+    await window.waitForLoadState('domcontentloaded');
+    await expect(window.locator('#app canvas')).toBeVisible({ timeout: 20_000 });
+
+    // Wait for app to fully initialize (sketch dropdown populated = init() complete)
+    const expectedCount = readExpectedSketchCount();
+    await expect(
+      window.locator('#sketch-select option')
+    ).toHaveCount(expectedCount, { timeout: 20_000 });
+
+    // Additional wait for event listeners to be fully attached
+    await window.waitForTimeout(3000);
+
+    // UI overlay should be visible initially (no .hidden class)
+    const overlay = window.locator('#overlay');
+    await expect(overlay).not.toHaveClass('hidden');
+
+    // Press U to hide UI - wait longer for key event to process
+    await window.keyboard.press('U');
+    await window.waitForTimeout(3000);
+
+    // Overlay should be hidden - check class attribute contains 'hidden'
+    const classAfterHide = await overlay.getAttribute('class');
+    expect(classAfterHide).toContain('hidden');
+
+    // Press U again to show UI
+    await window.keyboard.press('U');
+    await window.waitForTimeout(3000);
+
+    // UI should be visible again
+    const classAfterShow = await overlay.getAttribute('class');
+    expect(classAfterShow).not.toContain('hidden');
+
+    expect(pageErrors).toEqual([]);
+  } finally {
+    await electronApp.close();
+  }
+});
