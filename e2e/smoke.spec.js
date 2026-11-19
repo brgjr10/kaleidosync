@@ -372,6 +372,12 @@ test('UI toggle (U key / btn-ui-toggle) shows/hides overlay', async ({}, testInf
     await window.waitForLoadState('domcontentloaded');
     await expect(window.locator('#app canvas')).toBeVisible({ timeout: 20_000 });
 
+    // Wait for app to fully initialize (sketch dropdown populated = init() complete)
+    const expectedCount = readExpectedSketchCount();
+    await expect(
+      window.locator('#sketch-select option')
+    ).toHaveCount(expectedCount, { timeout: 20_000 });
+
     // UI overlay should be visible initially (no .hidden class)
     const overlay = window.locator('#overlay');
     await expect(overlay).not.toHaveClass('hidden');
