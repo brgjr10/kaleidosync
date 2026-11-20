@@ -3786,6 +3786,9 @@ async function loadLatestRelease() {
 
     const tag = release.tag_name || release.name || 'v2.0.0';
     const cleanVersion = tag.replace(/^v/, '');
+    // Extract semantic version (X.Y.Z) from tag like "v2.0.0-4cafa63" -> "2.0.0"
+    const semverMatch = cleanVersion.match(/^(\d+\.\d+\.\d+)/);
+    const semver = semverMatch ? semverMatch[1] : cleanVersion;
 
     // Update version badge
     if (versionEl) {
@@ -3800,7 +3803,7 @@ async function loadLatestRelease() {
     }
 
     // Build asset name patterns based on the release tag
-    const baseName = `Kaleidosync-${cleanVersion}`;
+    const baseName = `Kaleidosync-${semver}`;
 
     // Populate direct download links
     const assets = release.assets || [];
@@ -3811,12 +3814,12 @@ async function loadLatestRelease() {
 
     // Try to match assets by pattern
     const patterns = {
-      'linux-appimage': [`${baseName}.AppImage`, `Kaleidosync-${cleanVersion}.AppImage`],
-      'linux-deb': [`kaleidosync-desktop_${cleanVersion}_amd64.deb`, `kaleidosync-desktop_${cleanVersion}.deb`],
-      'win-nsis': [`Kaleidosync Setup ${cleanVersion}.exe`, `Kaleidosync-${cleanVersion}-setup.exe`, `Kaleidosync-${cleanVersion}.exe`],
-      'win-portable': [`Kaleidosync ${cleanVersion}.exe`, `Kaleidosync-${cleanVersion}-portable.zip`, `Kaleidosync-${cleanVersion}.zip`],
-      'macos-dmg': [`Kaleidosync-${cleanVersion}.dmg`, `Kaleidosync-${cleanVersion}-universal.dmg`],
-      'macos-zip': [`Kaleidosync-${cleanVersion}-mac.zip`, `Kaleidosync-${cleanVersion}-universal.zip`]
+      'linux-appimage': [`${baseName}.AppImage`, `Kaleidosync-${semver}.AppImage`],
+      'linux-deb': [`kaleidosync-desktop_${semver}_amd64.deb`, `kaleidosync-desktop_${semver}.deb`],
+      'win-nsis': [`Kaleidosync.Setup.${semver}.exe`, `Kaleidosync Setup ${semver}.exe`, `Kaleidosync-${semver}-setup.exe`, `Kaleidosync-${semver}.exe`],
+      'win-portable': [`Kaleidosync.${semver}.exe`, `Kaleidosync ${semver}.exe`, `Kaleidosync-${semver}-portable.zip`, `Kaleidosync-${semver}.zip`],
+      'macos-dmg': [`Kaleidosync-${semver}.dmg`, `Kaleidosync-${semver}-universal.dmg`],
+      'macos-zip': [`Kaleidosync-${semver}-mac.zip`, `Kaleidosync-${semver}-universal.zip`]
     };
 
     let foundAny = false;
