@@ -661,7 +661,8 @@
     }
 
     .grid.cols3 {
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 350px));
+      justify-content: center;
     }
 
     .card {
@@ -3812,8 +3813,8 @@ async function loadLatestRelease() {
     const patterns = {
       'linux-appimage': [`${baseName}.AppImage`, `Kaleidosync-${cleanVersion}.AppImage`],
       'linux-deb': [`kaleidosync-desktop_${cleanVersion}_amd64.deb`, `kaleidosync-desktop_${cleanVersion}.deb`],
-      'win-nsis': [`Kaleidosync-${cleanVersion}-setup.exe`, `Kaleidosync-${cleanVersion}.exe`],
-      'win-portable': [`Kaleidosync-${cleanVersion}-portable.zip`, `Kaleidosync-${cleanVersion}.zip`],
+      'win-nsis': [`Kaleidosync Setup ${cleanVersion}.exe`, `Kaleidosync-${cleanVersion}-setup.exe`, `Kaleidosync-${cleanVersion}.exe`],
+      'win-portable': [`Kaleidosync ${cleanVersion}.exe`, `Kaleidosync-${cleanVersion}-portable.zip`, `Kaleidosync-${cleanVersion}.zip`],
       'macos-dmg': [`Kaleidosync-${cleanVersion}.dmg`, `Kaleidosync-${cleanVersion}-universal.dmg`],
       'macos-zip': [`Kaleidosync-${cleanVersion}-mac.zip`, `Kaleidosync-${cleanVersion}-universal.zip`]
     };
